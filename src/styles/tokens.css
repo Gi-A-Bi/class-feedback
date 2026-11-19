@@ -1,0 +1,45 @@
+/* 기획 문서(CLAUDE.md) "디자인"에서 확정한 값. 색·치수는 여기서만 정한다. */
+:root {
+  /* 색 */
+  --c-bg: #f4f7f3;
+  --c-text: #16241d;
+  --c-primary: #1f6b4a;
+  --c-text-sub: #55635b;
+  --c-border: #d5ddd7;
+  --c-surface: #ffffff;
+
+  /* 별점 */
+  --c-star-fill: #f2a900;
+  --c-star-fill-stroke: #b77900;
+  --c-star-empty-stroke: #76837b;
+
+  /* 자기 평가 강조 */
+  --c-self-bg: #fff1c9;
+  --c-self-border: #e3c566;
+
+  /* 제출 현황 */
+  --c-done-bg: #d3e8da;
+  --c-done-text: #12402b;
+  --c-todo-bg: #ffffff;
+  --c-todo-border: #a9b5ad;
+  --c-todo-text: #44524a;
+
+  /* 글꼴 */
+  --f-title: 'Jua', 'Noto Sans KR', sans-serif;
+  --f-body: 'Noto Sans KR', sans-serif;
+
+  /* 모양 */
+  --r-card: 16px;
+  --r-button: 12px;
+  --tap-min: 44px;
+  --tap-star: 52px;
+
+  /* 교사 진행 화면 어두운 띠 */
+  --c-bar-bg: #16241d;
+  --c-bar-text: #f4f7f3;
+
+  /* 상태 표시 */
+  --c-warn-bg: #fff1c9;
+  --c-warn-border: #e3c566;
+  --c-error-text: #8c2f23;
+}
