@@ -3,8 +3,29 @@
 초등학교 수업에서 학생들이 친구의 발표를 듣고 평가하는 웹 프로그램입니다.
 기획 내용은 [CLAUDE.md](./CLAUDE.md)에 있습니다.
 
-지금은 **개발 1단계**(프로젝트 뼈대 + Firebase 연결 + Vercel 배포)까지 되어 있습니다.
-주소를 열면 "1단계 확인 화면"이 나오고, 거기서 Firebase 연결을 직접 시험해 볼 수 있습니다.
+지금은 **개발 2단계**(교사 로그인 + 학급·명단 관리)까지 되어 있습니다.
+주소를 열면 선생님 로그인 화면이 나옵니다.
+
+---
+
+## 2단계에서 선생님이 하실 일
+
+1단계 설정(아래 A~G)을 이미 마치셨다면, 추가로 하실 일은 **보안 규칙 올리기** 하나뿐입니다.
+`firestore.rules` 파일의 내용을 Firebase 콘솔에 붙여넣으면 됩니다.
+
+1. Firebase 콘솔 → **빌드(Build) → Firestore Database → 규칙(Rules)** 탭
+2. 글상자 안의 내용을 **전부 지우고**, 이 저장소의 `firestore.rules` 파일 내용을 그대로 붙여넣습니다
+3. **게시(Publish)** 를 누릅니다
+
+이걸 해야 학급을 만들고 명단을 저장할 수 있습니다. 안 하면 "학급을 만들지 못했어요"가 뜹니다.
+
+### 2단계에서 쓸 수 있는 것
+
+- 구글 계정으로 로그인 / 나가기
+- 학급 만들기 (입장 코드가 자동으로 생깁니다)
+- 학급 이름 고치기, 학급 지우기
+- 명단 붙여넣기 일괄 등록 — 엑셀·한글에서 복사한 그대로 붙여넣으면 됩니다
+- 학생 한 명씩 지우기
 
 ---
 
@@ -102,14 +123,32 @@ cp .env.example .env   # 값을 채운다
 npm run dev            # 개발 서버
 npm run build          # 타입 검사 + 빌드
 npm run lint
+npm test               # 명단 해석기 등 단위 테스트
+npm run test:rules     # 보안 규칙 테스트 (Firestore 에뮬레이터)
 ```
+
+### 에뮬레이터로 돌려 보기
+
+진짜 Firebase를 건드리지 않고 내 컴퓨터에서 시험할 때:
+
+```bash
+npx firebase emulators:start --only firestore,auth --project demo-class-feedback
+```
+
+`.env.local` 에 `VITE_USE_EMULATOR=true` 를 넣고 `npm run dev` 하면 앱이 에뮬레이터에 붙습니다.
+(`VITE_FIREBASE_*` 값은 아무 글자나 넣어도 됩니다.)
 
 - 기술 구성: Vite + React + TypeScript, Firebase(Firestore + Authentication), Vercel 배포
 - 서버 코드 없음. Cloud Functions와 Cloud Storage는 쓰지 않는다(Spark 무료 요금제).
 - 색·글꼴·치수 같은 디자인 값은 `src/styles/tokens.css` 한 곳에만 둔다.
+- 보안 규칙은 `firestore.rules`. 고치면 `npm run test:rules` 로 확인하고 콘솔에 다시 게시한다.
+- 입장 코드는 헷갈리는 글자(0 O 1 I L S B Z 2 8)를 뺀 6자리. `src/lib/joinCode.ts`
+- 학생은 `joinCodes/{코드}` 문서 하나만 읽어 학급을 찾는다. 학급 목록을 훑지 못하게 하려는 것.
+- Firestore 색인을 따로 만들 필요가 없도록, `where` 와 `orderBy` 를 같이 쓰지 않는다.
 - `.env` 는 커밋하지 않는다. 실제 값은 Vercel 환경 변수에도 같이 넣어야 한다.
 - `vercel.json` 의 rewrites는 SPA 깊은 링크(새로고침)가 404가 되지 않게 한다.
 
 ### 다음 단계
 
-2단계: 교사 Google 로그인, 학급·명단 관리, Firestore 보안 규칙 첫 버전.
+3단계: 활동 만들기(개인 발표), 교사 진행 화면, 학생 입장·평가 화면.
+여기까지가 수업에서 실제로 쓸 수 있는 1차 버전이다.

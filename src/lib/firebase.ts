@@ -4,8 +4,8 @@
 //   - getFirestore:  'firebase/firestore'
 //   - getAuth:       'firebase/auth'
 import { initializeApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth'
+import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore'
 
 /**
  * 웹 앱에 필요한 설정값.
@@ -44,13 +44,29 @@ function getApp(): FirebaseApp {
   return app
 }
 
+/**
+ * 내 컴퓨터에서 에뮬레이터로 시험할 때만 켠다(VITE_USE_EMULATOR=true).
+ * 실제 배포에서는 이 값이 없으므로 진짜 Firebase에 붙는다.
+ */
+const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true'
+
 export function getAuthClient(): Auth {
-  authInstance ??= getAuth(getApp())
+  if (!authInstance) {
+    authInstance = getAuth(getApp())
+    if (useEmulator) {
+      connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: true })
+    }
+  }
   return authInstance
 }
 
 export function getDb(): Firestore {
-  dbInstance ??= getFirestore(getApp())
+  if (!dbInstance) {
+    dbInstance = getFirestore(getApp())
+    if (useEmulator) {
+      connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080)
+    }
+  }
   return dbInstance
 }
 
