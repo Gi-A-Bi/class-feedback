@@ -1,0 +1,117 @@
+.join {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.join__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-card);
+  padding: 32px;
+  text-align: center;
+}
+
+.join__card--wide {
+  max-width: 860px;
+}
+
+.join__title {
+  font-size: 1.9rem;
+}
+
+.join__lead {
+  color: var(--c-text-sub);
+  margin: 8px 0 22px;
+}
+
+.join__code {
+  display: block;
+  width: 100%;
+  margin-bottom: 16px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 2rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+  min-height: 64px;
+}
+
+.join__card button[type='submit'] {
+  width: 100%;
+  font-size: 1.1rem;
+  min-height: 52px;
+}
+
+.join__error {
+  margin: 14px 0 0;
+  color: var(--c-error-text);
+}
+
+.namegrid {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.namebtn {
+  width: 100%;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-button);
+  color: var(--c-text);
+  font-size: 1.05rem;
+  text-align: left;
+}
+
+.namebtn:hover:not(:disabled) {
+  border-color: var(--c-primary);
+}
+
+.namebtn--taken {
+  background: var(--c-bg);
+  color: var(--c-todo-text);
+  border-color: var(--c-todo-border);
+  flex-wrap: wrap;
+}
+
+.namebtn__num {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--c-bg);
+  color: var(--c-text-sub);
+  font-size: 0.9rem;
+}
+
+.namebtn__name {
+  flex: 1;
+}
+
+.namebtn__tag {
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--c-text-sub);
+}
+
+.join__teacher {
+  display: inline-block;
+  margin-top: 18px;
+  color: var(--c-text-sub);
+  font-size: 0.85rem;
+}

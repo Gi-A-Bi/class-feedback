@@ -1,0 +1,238 @@
+/* 학생 평가 화면. 1024x768 에서 스크롤 없이 들어가야 한다. */
+
+.eval {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.eval__bar {
+  flex: none;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  background: var(--c-bar-bg);
+  color: var(--c-bar-text);
+}
+
+.eval__title {
+  font-family: var(--f-title);
+  font-size: 1.15rem;
+}
+
+.eval__sub {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.eval__spacer {
+  flex: 1;
+}
+
+.eval__me {
+  font-size: 0.95rem;
+}
+
+.eval__out {
+  background: transparent;
+  border-color: rgba(244, 247, 243, 0.4);
+  color: var(--c-bar-text);
+}
+
+.eval__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  padding: 16px 20px 20px;
+}
+
+.eval__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.eval__now,
+.eval__next {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-card);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eval--self .eval__now {
+  background: var(--c-self-bg);
+  border-color: var(--c-self-border);
+}
+
+.eval__nowlabel {
+  font-size: 0.85rem;
+  color: var(--c-text-sub);
+}
+
+.eval__nowname {
+  font-family: var(--f-title);
+  font-size: 1.55rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.eval__topic {
+  font-size: 0.9rem;
+  color: var(--c-text-sub);
+}
+
+.eval__anon {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--c-text-sub);
+}
+
+.eval__main {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-card);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.eval--self .eval__main {
+  background: var(--c-self-bg);
+  border-color: var(--c-self-border);
+}
+
+.eval__stars {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eval__comments {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.eval__comments > div {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.eval__comments textarea {
+  flex: 1;
+  min-height: 90px;
+  resize: none;
+}
+
+.eval__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.eval__foot button {
+  font-size: 1.05rem;
+  min-height: 52px;
+  padding: 0 28px;
+}
+
+.eval__hint,
+.eval__err {
+  font-size: 0.9rem;
+  color: var(--c-text-sub);
+}
+
+.eval__err {
+  color: var(--c-error-text);
+}
+
+.eval__done {
+  margin: auto 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.eval__doneTitle {
+  font-size: 1.9rem;
+}
+
+.eval__doneText {
+  margin: 0;
+  color: var(--c-text-sub);
+}
+
+.eval__summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.eval__summary li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  background: var(--c-bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.95rem;
+}
+
+.eval--self .eval__summary li {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.eval__wait {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: var(--c-text-sub);
+  font-size: 1.1rem;
+}
+
+/* 좁은 화면(태블릿 세로 등)에서는 세로로 쌓는다 */
+@media (max-width: 900px) {
+  .eval {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .eval__body {
+    grid-template-columns: 1fr;
+  }
+
+  .eval__comments {
+    grid-template-columns: 1fr;
+  }
+
+  .eval__main {
+    overflow: visible;
+  }
+}

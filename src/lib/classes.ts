@@ -92,6 +92,7 @@ export async function createClass(
     teacherId,
     name,
     joinCode,
+    currentActivityId: null,
     createdAt: serverTimestamp(),
   })
   batch.set(doc(db, 'joinCodes', joinCode), {
@@ -105,6 +106,7 @@ export async function createClass(
     teacherId,
     name,
     joinCode,
+    currentActivityId: null,
     createdAt: Date.now(),
   }
 }

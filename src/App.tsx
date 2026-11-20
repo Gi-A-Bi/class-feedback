@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAuth } from './lib/authContext'
 import { isConfigured } from './lib/firebase'
 import SetupCheck from './screens/SetupCheck'
@@ -6,13 +6,16 @@ import TeacherLogin from './screens/TeacherLogin'
 import TeacherHome from './screens/TeacherHome'
 import ClassList from './screens/ClassList'
 import ClassDetail from './screens/ClassDetail'
+import ActivityNew from './screens/ActivityNew'
+import ActivityRun from './screens/ActivityRun'
+import StudentApp from './screens/StudentApp'
 
 /** 로그인한 교사만 지나갈 수 있는 문 */
-function TeacherOnly() {
+function TeacherGuard() {
   const { loading, teacher } = useAuth()
   if (loading) return <p className="spinner">불러오는 중…</p>
   if (!teacher) return <TeacherLogin />
-  return <TeacherHome />
+  return <Outlet />
 }
 
 export default function App() {
@@ -21,13 +24,19 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/teacher" element={<TeacherOnly />}>
-        <Route index element={<ClassList />} />
-        <Route path="class/:classId" element={<ClassDetail />} />
+      <Route element={<TeacherGuard />}>
+        {/* 학급 관리: 공통 머리띠 + 가운데 정렬된 본문 */}
+        <Route path="/teacher" element={<TeacherHome />}>
+          <Route index element={<ClassList />} />
+          <Route path="class/:classId" element={<ClassDetail />} />
+          <Route path="class/:classId/new-activity" element={<ActivityNew />} />
+        </Route>
+        {/* 진행 화면은 수업 중에 띄워 두는 화면이라 머리띠를 따로 쓴다 */}
+        <Route path="/teacher/activity/:activityId" element={<ActivityRun />} />
       </Route>
+      <Route path="/student" element={<StudentApp />} />
       <Route path="/setup" element={<SetupCheck />} />
-      {/* 학생 화면은 3단계에서 /student 로 들어온다. */}
-      <Route path="*" element={<Navigate to="/teacher" replace />} />
+      <Route path="*" element={<Navigate to="/student" replace />} />
     </Routes>
   )
 }

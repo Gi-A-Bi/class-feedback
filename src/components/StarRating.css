@@ -1,0 +1,38 @@
+.stars {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+}
+
+.stars__label {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.stars__row {
+  display: flex;
+  gap: 2px;
+}
+
+.stars__btn {
+  width: var(--tap-star);
+  height: var(--tap-star);
+  min-height: var(--tap-star);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.stars__btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.stars--self .stars__btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
