@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { watchActivitiesOfClass } from '../lib/activities'
+import { useAuth } from '../lib/authContext'
 import {
   deleteClass,
   deleteStudent,
@@ -9,11 +11,13 @@ import {
   replaceRoster,
   watchStudents,
 } from '../lib/classes'
-import type { ClassRoomWithId, StudentWithId } from '../lib/types'
+import type { ActivityWithId, ClassRoomWithId, StudentWithId } from '../lib/types'
 
 export default function ClassDetail() {
   const { classId = '' } = useParams()
   const navigate = useNavigate()
+  const { teacher } = useAuth()
+  const [activities, setActivities] = useState<ActivityWithId[]>([])
 
   const [klass, setKlass] = useState<ClassRoomWithId | null | 'missing'>(null)
   const [students, setStudents] = useState<StudentWithId[] | null>(null)
@@ -45,6 +49,11 @@ export default function ClassDetail() {
       () => setError('명단을 불러오지 못했어요.'),
     )
   }, [classId])
+
+  useEffect(() => {
+    if (!teacher) return
+    return watchActivitiesOfClass(teacher.uid, classId, setActivities, () => undefined)
+  }, [teacher, classId])
 
   const preview = useMemo(() => parseRoster(roster), [roster])
 
@@ -159,6 +168,37 @@ export default function ClassDetail() {
           <strong className="codebox__code">{klass.joinCode}</strong>
           <span className="codebox__hint">칠판에 적어 주세요.</span>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <h2 className="card__title">활동</h2>
+          <Link to={`/teacher/class/${classId}/new-activity`}>
+            <button type="button" disabled={(students?.length ?? 0) === 0}>
+              활동 만들기
+            </button>
+          </Link>
+        </div>
+        {(students?.length ?? 0) === 0 ? (
+          <p className="card__hint" style={{ marginTop: 10 }}>
+            명단을 먼저 등록하면 활동을 만들 수 있어요.
+          </p>
+        ) : activities.length === 0 ? (
+          <p className="empty">아직 활동이 없어요.</p>
+        ) : (
+          <ul className="classlist" style={{ marginTop: 14 }}>
+            {activities.map((a) => (
+              <li key={a.id} className="classlist__item">
+                <Link to={`/teacher/activity/${a.id}`} className="classlist__link">
+                  {a.title}
+                </Link>
+                <span className="classlist__code">
+                  {a.status === 'ready' ? '준비' : a.status === 'running' ? '진행 중' : '끝남'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="card">

@@ -290,3 +290,47 @@ label {
   border-color: rgba(244, 247, 243, 0.4);
   color: var(--c-bar-text);
 }
+
+.critlist,
+.orderlist {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.critlist__item,
+.orderlist__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.critlist__item input {
+  flex: 1;
+  max-width: 280px;
+}
+
+.orderlist__item {
+  padding: 8px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-button);
+  max-width: 520px;
+}
+
+.orderlist__pos {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--c-bg);
+  color: var(--c-text-sub);
+  font-size: 0.9rem;
+}
+
+.orderlist__name {
+  flex: 1;
+}

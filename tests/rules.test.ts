@@ -258,7 +258,9 @@ describe('입장 코드', () => {
 
 describe('규칙에 없는 곳', () => {
   it('아직 만들지 않은 컬렉션은 아무도 못 쓴다', async () => {
-    await assertFails(setDoc(doc(teacher(TEACHER_A), 'activities', 'a1'), { x: 1 }))
-    await assertFails(getDoc(doc(student(), 'activities', 'a1')))
+    // results 는 4단계에서 더한다. 그 전까지는 교사도 학생도 못 쓴다.
+    await assertFails(setDoc(doc(teacher(TEACHER_A), 'results', 'r1'), { x: 1 }))
+    await assertFails(getDoc(doc(student(), 'results', 'r1')))
+    await assertFails(setDoc(doc(teacher(TEACHER_A), '아무거나', 'x1'), { x: 1 }))
   })
 })
