@@ -18,6 +18,7 @@ import { toMillis } from './time'
 import {
   evaluationId,
   type Activity,
+  type ActivityKind,
   type ActivityWithId,
   type Criterion,
   type EvaluationKind,
@@ -26,14 +27,18 @@ import {
   type PresentationWithId,
 } from './types'
 
-/** 활동 하나와 그 발표 순서를 한 번에 만든다. */
+/** 활동 하나와 그 발표 순서를 만든다. */
 export async function createActivity(input: {
   teacherId: string
   classId: string
   title: string
+  kind: ActivityKind
   criteria: Criterion[]
-  /** 발표 차례대로 늘어놓은 학생 id */
-  studentIds: string[]
+  /**
+   * 발표 차례대로 늘어놓은 발표들.
+   * 개인 발표면 학생 한 명에 모둠 이름은 빈 문자열, 모둠 발표면 모둠원 여럿에 모둠 이름.
+   */
+  presentations: { studentIds: string[]; groupName: string }[]
 }): Promise<string> {
   const db = getDb()
   const activityRef = doc(collection(db, 'activities'))
@@ -45,7 +50,7 @@ export async function createActivity(input: {
     classId: input.classId,
     teacherId: input.teacherId,
     title: input.title,
-    kind: 'individual',
+    kind: input.kind,
     criteria: input.criteria,
     currentPresentationId: null,
     status: 'ready',
@@ -54,17 +59,25 @@ export async function createActivity(input: {
   } satisfies Record<keyof Activity, unknown>)
 
   const batch = writeBatch(db)
-  input.studentIds.forEach((studentId, index) => {
+  input.presentations.forEach((p, index) => {
     batch.set(doc(collection(activityRef, 'presentations')), {
       order: index + 1,
-      studentIds: [studentId],
-      groupName: '',
+      studentIds: p.studentIds,
+      groupName: p.groupName,
       topic: '',
     })
   })
   await batch.commit()
 
   return activityRef.id
+}
+
+/** 발표 목록을 한 번 읽는다(이전 활동의 모둠을 불러올 때). */
+export async function getPresentations(activityId: string): Promise<PresentationWithId[]> {
+  const snap = await getDocs(collection(getDb(), 'activities', activityId, 'presentations'))
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PresentationWithId)
+  rows.sort((a, b) => a.order - b.order)
+  return rows
 }
 
 export function watchActivitiesOfClass(

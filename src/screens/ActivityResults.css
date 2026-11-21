@@ -133,3 +133,10 @@
   border: 1px solid var(--c-todo-border);
   color: var(--c-todo-text);
 }
+
+.results__members {
+  margin-left: 12px;
+  font-family: var(--f-body);
+  font-size: 0.9rem;
+  color: var(--c-text-sub);
+}

@@ -12,6 +12,7 @@ import {
   watchPresentations,
 } from '../lib/activities'
 import { getClass, watchStudents } from '../lib/classes'
+import { presentationLabel, presentationMembers } from '../lib/groups'
 import { isSelfEvaluation, summarize } from '../lib/results'
 import type {
   ActivityWithId,
@@ -194,7 +195,10 @@ export default function ActivityResults() {
               <div className="results__head">
                 <h2 className="card__title">
                   <span className="results__pos">{i + 1}</span>
-                  {p.studentIds.map(nameOf).join(', ')}
+                  {presentationLabel(p, nameOf)}
+                  {p.groupName && (
+                    <span className="results__members">{presentationMembers(p, nameOf)}</span>
+                  )}
                 </h2>
                 <span className="results__count">친구 {summary.peerCount}명이 평가</span>
               </div>

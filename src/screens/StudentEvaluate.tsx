@@ -5,6 +5,7 @@ import EvaluationForm from './EvaluationForm'
 import StudentRecords from './StudentRecords'
 import { watchActivity, watchPresentations } from '../lib/activities'
 import { watchStudents } from '../lib/classes'
+import { presentationLabel, presentationMembers } from '../lib/groups'
 import { clearSession, currentUid, releaseStudent, watchClass, type StudentSession } from '../lib/student'
 import type { ActivityWithId, PresentationWithId, StudentWithId } from '../lib/types'
 import './StudentEvaluate.css'
@@ -104,6 +105,7 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
     return <WaitScreen session={session} text="첫 발표를 기다리고 있어요." onLeave={handleLeave} onRecords={openRecords} />
   }
 
+  const isGroup = Boolean(current.groupName)
   const toneClass = isSelf ? ' eval--self' : ''
 
   return (
@@ -126,20 +128,25 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
       <div className="eval__body">
         <aside className="eval__side">
           <div className="eval__now">
-            <span className="eval__nowlabel">{isSelf ? '지금 내 차례예요' : '지금 발표'}</span>
+            <span className="eval__nowlabel">
+              {isSelf ? (isGroup ? '지금 우리 모둠 차례예요' : '지금 내 차례예요') : '지금 발표'}
+            </span>
             <strong className="eval__nowname">
-              {isSelf ? '나의 발표' : nameOf(current.studentIds[0])}
+              {isSelf && !isGroup ? '나의 발표' : presentationLabel(current, nameOf)}
             </strong>
+            {isGroup && <span className="eval__topic">{presentationMembers(current, nameOf)}</span>}
             {current.topic && <span className="eval__topic">{current.topic}</span>}
           </div>
           <div className="eval__next">
             <span className="eval__nowlabel">다음 발표</span>
-            <span>{next ? nameOf(next.studentIds[0]) : '마지막이에요'}</span>
+            <span>{next ? presentationLabel(next, nameOf) : '마지막이에요'}</span>
           </div>
           {error && <p className="eval__err">{error}</p>}
           <p className="eval__anon">
             {isSelf
-              ? '내 발표를 스스로 돌아보는 칸이에요.'
+              ? isGroup
+                ? '우리 모둠의 발표를 스스로 돌아보는 칸이에요. 모둠 친구들도 각자 따로 써요.'
+                : '내 발표를 스스로 돌아보는 칸이에요.'
               : '내가 누구인지는 친구에게 보이지 않아요. 솔직하게 써도 괜찮아요.'}
           </p>
         </aside>
