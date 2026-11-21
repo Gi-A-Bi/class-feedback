@@ -328,3 +328,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+.run__members {
+  flex-basis: 100%;
+  order: 3;
+  color: var(--c-text-sub);
+  font-size: 0.95rem;
+}
+
+.run__listSub {
+  margin-left: 8px;
+  color: var(--c-text-sub);
+  font-size: 0.8rem;
+}

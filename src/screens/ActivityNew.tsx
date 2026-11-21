@@ -1,12 +1,21 @@
-// 교사 2. 활동 만들기 — 제목, 기준, 발표 순서.
+// 교사 2. 활동 만들기 — 제목, 유형(개인/모둠), 기준, 발표 순서 또는 모둠 편성.
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import GroupBuilder from '../components/GroupBuilder'
 import { ChevronDown, ChevronUp, ShuffleIcon } from '../components/Icons'
-import { createActivity } from '../lib/activities'
+import { createActivity, getPresentations, watchActivitiesOfClass } from '../lib/activities'
+import { groupProblem, groupsFromPresentations, type GroupDraft } from '../lib/groups'
 import { shuffle } from '../lib/results'
 import { getClass, watchStudents } from '../lib/classes'
 import { useAuth } from '../lib/authContext'
-import { DEFAULT_CRITERIA, type ClassRoomWithId, type Criterion, type StudentWithId } from '../lib/types'
+import {
+  DEFAULT_CRITERIA,
+  type ActivityKind,
+  type ActivityWithId,
+  type ClassRoomWithId,
+  type Criterion,
+  type StudentWithId,
+} from '../lib/types'
 
 export default function ActivityNew() {
   const { classId = '' } = useParams()
@@ -18,6 +27,10 @@ export default function ActivityNew() {
   const [title, setTitle] = useState('')
   const [criteria, setCriteria] = useState<Criterion[]>(DEFAULT_CRITERIA)
   const [order, setOrder] = useState<string[]>([])
+  const [kind, setKind] = useState<ActivityKind>('individual')
+  const [groups, setGroups] = useState<GroupDraft[]>([])
+  const [previous, setPrevious] = useState<ActivityWithId[]>([])
+  const [loadingPrevious, setLoadingPrevious] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,6 +48,35 @@ export default function ActivityNew() {
       () => setError('명단을 불러오지 못했어요.'),
     )
   }, [classId])
+
+  // 이 학급에서 전에 했던 모둠 활동(모둠 편성을 다시 쓰기 위해)
+  useEffect(() => {
+    if (!teacher) return
+    return watchActivitiesOfClass(
+      teacher.uid,
+      classId,
+      (rows) => setPrevious(rows.filter((a) => a.kind === 'group')),
+      () => undefined,
+    )
+  }, [teacher, classId])
+
+  async function loadPreviousGroups(activityId: string) {
+    setLoadingPrevious(true)
+    setError(null)
+    try {
+      const presentations = await getPresentations(activityId)
+      const loaded = groupsFromPresentations(presentations, new Set(students.map((s) => s.id)))
+      if (loaded.length === 0) {
+        setError('그 활동의 모둠원이 지금 명단에 없어서 불러오지 못했어요.')
+      } else {
+        setGroups(loaded)
+      }
+    } catch {
+      setError('이전 활동의 모둠을 불러오지 못했어요.')
+    } finally {
+      setLoadingPrevious(false)
+    }
+  }
 
   function move(index: number, delta: number) {
     setOrder((prev) => {
@@ -67,7 +109,11 @@ export default function ActivityNew() {
   const cleanCriteria = criteria
     .map((c) => ({ ...c, label: c.label.trim() }))
     .filter((c) => c.label)
-  const canSave = Boolean(title.trim()) && cleanCriteria.length > 0 && order.length > 0
+  const problem = kind === 'group' ? groupProblem(groups) : null
+  const canSave =
+    Boolean(title.trim()) &&
+    cleanCriteria.length > 0 &&
+    (kind === 'group' ? problem === null : order.length > 0)
 
   async function handleSave() {
     if (!teacher || !canSave) return
@@ -78,8 +124,12 @@ export default function ActivityNew() {
         teacherId: teacher.uid,
         classId,
         title: title.trim(),
+        kind,
         criteria: cleanCriteria,
-        studentIds: order,
+        presentations:
+          kind === 'group'
+            ? groups.map((g) => ({ studentIds: g.studentIds, groupName: g.name.trim() }))
+            : order.map((studentId) => ({ studentIds: [studentId], groupName: '' })),
       })
       navigate(`/teacher/activity/${id}`)
     } catch {
@@ -94,7 +144,31 @@ export default function ActivityNew() {
     <>
       <div className="card">
         <h2 className="card__title">활동 만들기</h2>
-        <p className="card__hint">{klass?.name ?? '학급'} · 개인 발표</p>
+        <p className="card__hint">{klass?.name ?? '학급'}</p>
+
+        <div className="kindpick" role="radiogroup" aria-label="발표 유형">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={kind === 'individual'}
+            className={`kindpick__btn${kind === 'individual' ? ' kindpick__btn--on' : ''}`}
+            onClick={() => setKind('individual')}
+          >
+            <strong>개인 발표</strong>
+            <span>한 명씩 발표하고 한 명씩 평가받아요</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={kind === 'group'}
+            className={`kindpick__btn${kind === 'group' ? ' kindpick__btn--on' : ''}`}
+            onClick={() => setKind('group')}
+          >
+            <strong>모둠 발표</strong>
+            <span>모둠이 함께 발표하고 함께 평가받아요</span>
+          </button>
+        </div>
+
         <label htmlFor="title">활동 제목</label>
         <input
           id="title"
@@ -141,6 +215,7 @@ export default function ActivityNew() {
         </button>
       </div>
 
+      {kind === 'individual' ? (
       <div className="card">
         <h2 className="card__title">발표 순서</h2>
         <p className="card__hint">
@@ -193,6 +268,33 @@ export default function ActivityNew() {
           </ol>
         )}
       </div>
+      ) : (
+      <div className="card">
+        <h2 className="card__title">모둠 편성과 발표 순서</h2>
+        <p className="card__hint">
+          모둠 수를 정해 나눈 뒤 손으로 고칠 수 있어요. 모둠 칸을 눌러 고르고, 위쪽에서 학생 이름을 누르면
+          그 모둠에 들어갑니다. 모둠 안의 이름을 누르면 빠집니다. 위에서부터 발표 순서입니다.
+        </p>
+        {students.length === 0 ? (
+          <p className="empty">학생이 없어요. 명단을 먼저 등록해 주세요.</p>
+        ) : (
+          <GroupBuilder
+            students={students}
+            groups={groups}
+            onChange={setGroups}
+            previousActivities={previous}
+            onLoadPrevious={loadPreviousGroups}
+            loadingPrevious={loadingPrevious}
+          />
+        )}
+        {groups.length > 0 && problem && <p className="msg msg--warn">{problem}</p>}
+        {groups.length > 0 && !problem && students.length > groups.reduce((n, g) => n + g.studentIds.length, 0) && (
+          <p className="card__hint" style={{ margin: '14px 0 0' }}>
+            모둠이 없는 학생은 발표 없이 평가만 합니다.
+          </p>
+        )}
+      </div>
+      )}
 
       {error && <p className="msg msg--bad">{error}</p>}
 

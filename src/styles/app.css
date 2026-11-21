@@ -364,3 +364,34 @@ label {
   background: var(--c-done-bg);
   color: var(--c-done-text);
 }
+
+.kindpick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 640px;
+  margin-bottom: 18px;
+}
+
+.kindpick__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 16px;
+  text-align: left;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+}
+
+.kindpick__btn span {
+  font-size: 0.85rem;
+  color: var(--c-text-sub);
+}
+
+.kindpick__btn--on {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 2px var(--c-primary) inset;
+}

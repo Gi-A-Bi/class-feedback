@@ -113,12 +113,14 @@ export default function StudentRecords({ session, onBack }: Props) {
               <div className="rec__head">
                 <h2 className="rec__title">
                   {selectedIndex + 1}회 · {selected.activityTitle}
-                  {selected.kind === 'group' && <span className="rec__tag">모둠</span>}
+                  {selected.kind === 'group' && (
+                    <span className="rec__tag">모둠{selected.groupName ? ` · ${selected.groupName}` : ''}</span>
+                  )}
                 </h2>
                 <p className="rec__sub">
                   {shortDate(selected.activityCreatedAt)} ·{' '}
                   {selected.peerCount > 0
-                    ? `친구 ${selected.peerCount}명이 평가했어요`
+                    ? `친구 ${selected.peerCount}명이 ${selected.kind === 'group' ? '우리 모둠을 ' : ''}평가했어요`
                     : '아직 친구들의 평가가 없어요'}
                   {(() => {
                     const text = compareText(

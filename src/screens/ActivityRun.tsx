@@ -16,6 +16,7 @@ import {
   watchPresentations,
 } from '../lib/activities'
 import { getClass, releaseClaim, watchStudents } from '../lib/classes'
+import { presentationLabel, presentationMembers } from '../lib/groups'
 import type {
   ActivityWithId,
   ClassRoomWithId,
@@ -113,7 +114,7 @@ export default function ActivityRun() {
         <div className="run__barMain">
           <span className="run__title">{activity.title}</span>
           <span className="run__sub">
-            {klass?.name ?? ''} · 개인 발표 ·{' '}
+            {klass?.name ?? ''} · {activity.kind === 'group' ? '모둠 발표' : '개인 발표'} ·{' '}
             {activity.status === 'ready' ? '준비' : activity.status === 'running' ? '진행 중' : '끝남'}
           </span>
         </div>
@@ -158,7 +159,8 @@ export default function ActivityRun() {
           {activity.status === 'ready' ? (
             <div className="run__ready">
               <p className="run__readyText">
-                발표 {presentations.length}명이 준비됐어요. 시작하면 학생 화면에 첫 발표자가 나타납니다.
+                {activity.kind === 'group' ? `${presentations.length}개 모둠` : `발표 ${presentations.length}명`}이 준비됐어요. 시작하면 학생
+                화면에 첫 발표가 나타납니다.
               </p>
               <button
                 type="button"
@@ -185,8 +187,11 @@ export default function ActivityRun() {
               <div className="run__nowbox">
                 <span className="run__nowlabel">지금 발표</span>
                 <strong className="run__nowname">
-                  {current ? nameOf(current.studentIds[0]) : '-'}
+                  {current ? presentationLabel(current, nameOf) : '-'}
                 </strong>
+                {current && presentationMembers(current, nameOf) && (
+                  <span className="run__members">{presentationMembers(current, nameOf)}</span>
+                )}
                 <span className="run__pos">
                   {index + 1} / {presentations.length}
                 </span>
@@ -310,16 +315,20 @@ export default function ActivityRun() {
                       type="button"
                       className="run__jump"
                       disabled={busy}
-                      title="이 학생의 발표로 바로 넘어갑니다"
+                      title={presentationMembers(p, nameOf) || '이 발표로 바로 넘어갑니다'}
                       onClick={() => {
-                        if (!window.confirm(`${nameOf(p.studentIds[0])}의 발표로 바로 넘어갈까요?`)) return
+                        if (!window.confirm(`${presentationLabel(p, nameOf)}의 발표로 바로 넘어갈까요?`)) return
                         run(() => goToPresentation(activityId, p.id), '넘기지 못했어요.')
                       }}
                     >
-                      {nameOf(p.studentIds[0])}
+                      {presentationLabel(p, nameOf)}
+                      {p.groupName && <span className="run__listSub">{p.studentIds.length}명</span>}
                     </button>
                   ) : (
-                    <span className="run__listName">{nameOf(p.studentIds[0])}</span>
+                    <span className="run__listName" title={presentationMembers(p, nameOf) || undefined}>
+                      {presentationLabel(p, nameOf)}
+                      {p.groupName && <span className="run__listSub">{p.studentIds.length}명</span>}
+                    </span>
                   )}
                   {activity.status !== 'ended' && (
                     <>
@@ -328,7 +337,7 @@ export default function ActivityRun() {
                         className="run__move"
                         disabled={busy || i === 0}
                         onClick={() => move(-1)}
-                        aria-label={`${nameOf(p.studentIds[0])} 순서를 앞으로`}
+                        aria-label={`${presentationLabel(p, nameOf)} 순서를 앞으로`}
                       >
                         <ChevronUp />
                       </button>
@@ -337,7 +346,7 @@ export default function ActivityRun() {
                         className="run__move"
                         disabled={busy || i === presentations.length - 1}
                         onClick={() => move(1)}
-                        aria-label={`${nameOf(p.studentIds[0])} 순서를 뒤로`}
+                        aria-label={`${presentationLabel(p, nameOf)} 순서를 뒤로`}
                       >
                         <ChevronDown />
                       </button>
@@ -349,7 +358,7 @@ export default function ActivityRun() {
           </ol>
           {activity.status === 'running' && (
             <p className="run__hint" style={{ marginBottom: 14 }}>
-              이름을 누르면 그 학생의 발표로 바로 넘어가고, 화살표로 순서를 바꿉니다.
+              이름을 누르면 그 발표로 바로 넘어가고, 화살표로 순서를 바꿉니다.
             </p>
           )}
           <button
