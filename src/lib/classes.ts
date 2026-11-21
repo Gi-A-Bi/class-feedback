@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  type DocumentReference,
   getDoc,
   getDocs,
   onSnapshot,
@@ -117,12 +118,64 @@ export async function renameClass(classId: string, name: string): Promise<void> 
   await setDoc(doc(getDb(), 'classes', classId), { name }, { merge: true })
 }
 
-/** 학급과 그 아래 명단, 입장 코드 문서를 지운다. */
-export async function deleteClass(classId: string, joinCode: string): Promise<void> {
+/** 한 묶음(batch)에 담을 수 있는 쓰기는 500건까지라 넉넉히 끊어 지운다. */
+async function deleteInChunks(refs: DocumentReference[]): Promise<void> {
   const db = getDb()
-  const students = await getDocs(collection(db, 'classes', classId, 'students'))
+  for (let i = 0; i < refs.length; i += 400) {
+    const batch = writeBatch(db)
+    for (const ref of refs.slice(i, i + 400)) batch.delete(ref)
+    await batch.commit()
+  }
+}
+
+/** 학생에게 공개해 둔 결과 문서들. 학생 문서를 지워도 저절로 지워지지 않으므로 따로 찾는다. */
+async function recordRefsOf(classId: string, studentId: string): Promise<DocumentReference[]> {
+  const snap = await getDocs(
+    collection(getDb(), 'classes', classId, 'students', studentId, 'records'),
+  )
+  return snap.docs.map((d) => d.ref)
+}
+
+/**
+ * 학급을 지운다. 그 학급의 활동(발표 순서, 평가), 공개한 결과, 누적 기록,
+ * 명단, 입장 코드까지 모두 지운다. 개인정보처리방침의 "학급을 지우면 바로
+ * 파기"가 이 함수에 달려 있으니, 학급 아래에 새 데이터가 생기면 여기에도 더한다.
+ *
+ * 순서가 중요하다. 보안 규칙이 부모 문서(활동, 학급)를 읽어 주인을 확인하므로
+ * 아래 문서를 먼저 지우고 부모를 나중에 지운다.
+ */
+export async function deleteClass(
+  classId: string,
+  joinCode: string,
+  teacherId: string,
+): Promise<void> {
+  const db = getDb()
+
+  // 1. 이 학급의 활동과 그 아래 발표 순서·평가
+  const mine = await getDocs(
+    query(collection(db, 'activities'), where('teacherId', '==', teacherId)),
+  )
+  const activities = mine.docs.filter((d) => d.data().classId === classId)
+  for (const activity of activities) {
+    const [presentations, evaluations] = await Promise.all([
+      getDocs(collection(activity.ref, 'presentations')),
+      getDocs(collection(activity.ref, 'evaluations')),
+    ])
+    await deleteInChunks([...presentations.docs, ...evaluations.docs].map((d) => d.ref))
+    await deleteDoc(activity.ref)
+  }
+
+  // 2. 학생에게 공개한 결과, 누적 기록, 명단
+  const [students, ledgers] = await Promise.all([
+    getDocs(collection(db, 'classes', classId, 'students')),
+    getDocs(collection(db, 'classes', classId, 'ledger')),
+  ])
+  const records = await Promise.all(students.docs.map((s) => recordRefsOf(classId, s.id)))
+  await deleteInChunks([...records.flat(), ...ledgers.docs.map((d) => d.ref)])
+  await deleteInChunks(students.docs.map((d) => d.ref))
+
+  // 3. 입장 코드와 학급
   const batch = writeBatch(db)
-  for (const s of students.docs) batch.delete(s.ref)
   batch.delete(doc(db, 'joinCodes', joinCode))
   batch.delete(doc(db, 'classes', classId))
   await batch.commit()
@@ -240,13 +293,17 @@ export async function replaceRoster(
       batch.update(before.ref, { name: s.name })
     }
   }
-  for (const d of existing.docs) {
-    if (!incomingNumbers.has(d.data().number as number)) batch.delete(d.ref)
-  }
+  const removed = existing.docs.filter((d) => !incomingNumbers.has(d.data().number as number))
+  for (const d of removed) batch.delete(d.ref)
+  // 명단에서 빠진 학생에게 공개해 둔 결과도 함께 지운다.
+  const records = await Promise.all(removed.map((d) => recordRefsOf(classId, d.id)))
+  await deleteInChunks(records.flat())
   await batch.commit()
 }
 
+/** 학생을 명단에서 지운다. 그 학생에게 공개해 둔 결과도 함께 지운다. */
 export async function deleteStudent(classId: string, studentId: string): Promise<void> {
+  await deleteInChunks(await recordRefsOf(classId, studentId))
   await deleteDoc(doc(getDb(), 'classes', classId, 'students', studentId))
 }
 

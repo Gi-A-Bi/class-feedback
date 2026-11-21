@@ -90,14 +90,14 @@ export default function ClassDetail() {
   }
 
   async function handleDeleteClass() {
-    if (klass === null || klass === 'missing') return
+    if (klass === null || klass === 'missing' || !teacher) return
     const ok = window.confirm(
-      `"${klass.name}" 학급을 지울까요?\n명단과 입장 코드도 함께 지워집니다. 되돌릴 수 없어요.`,
+      `"${klass.name}" 학급을 지울까요?\n명단, 이 학급의 활동과 평가, 누적 기록, 입장 코드가 모두 지워집니다. 되돌릴 수 없어요.`,
     )
     if (!ok) return
     setBusy(true)
     try {
-      await deleteClass(classId, klass.joinCode)
+      await deleteClass(classId, klass.joinCode, teacher.uid)
       navigate('/teacher')
     } catch {
       setError('학급을 지우지 못했어요.')

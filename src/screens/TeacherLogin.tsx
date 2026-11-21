@@ -51,6 +51,11 @@ export default function TeacherLogin() {
             {busy ? '들어가는 중…' : 'Google 계정으로 로그인'}
           </button>
           {error && <p className="msg msg--bad">{error}</p>}
+          <p className="card__hint" style={{ marginTop: 16, marginBottom: 0 }}>
+            <a href="/privacy.html" style={{ color: 'inherit' }}>
+              개인정보처리방침
+            </a>
+          </p>
         </div>
       </div>
     </div>

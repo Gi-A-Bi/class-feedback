@@ -96,9 +96,10 @@ export default function StudentJoin({ onJoined }: Props) {
             {busy ? '찾는 중…' : '들어가기'}
           </button>
           {error && <p className="join__error">{error}</p>}
-          <a className="join__teacher" href="/teacher">
-            선생님이신가요?
-          </a>
+          <p className="join__links">
+            <a href="/teacher">선생님이신가요?</a>
+            <a href="/privacy.html">개인정보처리방침</a>
+          </p>
         </form>
       </main>
     )
