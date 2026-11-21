@@ -2,7 +2,7 @@ rules_version = '2';
 
 // 발표 평가 프로그램 보안 규칙
 //
-// 지금은 4단계(결과 공개, 코멘트 숨기기)까지 다룬다.
+// 6단계(누적 기록, 기준 묶음)까지 다룬다.
 // 여기에 적히지 않은 경로는 Firestore 기본값대로 아무도 읽고 쓰지 못한다.
 //
 // 교사  = 구글 로그인 사용자
@@ -47,16 +47,22 @@ service cloud.firestore {
       allow list: if false;
 
       allow create: if isTeacher() && isMe(uid)
-        && request.resource.data.keys().hasOnly(['name', 'createdAt'])
-        && isText(request.resource.data.name, 50)
+        && validTeacher(request.resource.data)
         && request.resource.data.createdAt == request.time;
 
+      // 이름과 저장한 기준 묶음을 고칠 수 있다. 만든 시각은 그대로여야 한다.
       allow update: if isTeacher() && isMe(uid)
-        && request.resource.data.keys().hasOnly(['name', 'createdAt'])
-        && isText(request.resource.data.name, 50)
+        && validTeacher(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
 
       allow delete: if false;
+    }
+
+    function validTeacher(data) {
+      return data.keys().hasOnly(['name', 'createdAt', 'criteriaSets'])
+        && isText(data.name, 50)
+        && (!('criteriaSets' in data)
+            || (data.criteriaSets is list && data.criteriaSets.size() <= 30));
     }
 
     // ── 학급 ───────────────────────────────────────────────
@@ -241,6 +247,13 @@ service cloud.firestore {
         || (isSignedIn() && studentClaimedBy(classId, studentId) == request.auth.uid);
 
       allow write: if isTeacher() && isMe(classOwner(classId));
+    }
+
+    // ── 누적 기록(교사용) ──────────────────────────────────
+    // 활동이 끝날 때 교사 브라우저가 학생별 점수 요약을 적어 둔다. 코멘트는 없다.
+    // 학생끼리의 점수가 한 문서에 모여 있으므로 학생은 절대 읽지 못한다.
+    match /classes/{classId}/ledger/{activityId} {
+      allow read, write: if isTeacher() && isMe(classOwner(classId));
     }
 
     function studentClaimedBy(classId, studentId) {

@@ -16,3 +16,10 @@ export function shortDate(value: FsTime): string {
   const d = new Date(toMillis(value))
   return `${d.getMonth() + 1}월 ${d.getDate()}일`
 }
+
+/** "2026-11-21" 같은 날짜. 엑셀과 파일 이름에 쓴다. */
+export function isoDate(value: FsTime): string {
+  const d = new Date(toMillis(value))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}

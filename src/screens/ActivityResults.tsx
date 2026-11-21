@@ -12,8 +12,10 @@ import {
   watchPresentations,
 } from '../lib/activities'
 import { getClass, watchStudents } from '../lib/classes'
+import { activitySheets, downloadWorkbook } from '../lib/export'
 import { presentationLabel, presentationMembers } from '../lib/groups'
 import { isSelfEvaluation, summarize } from '../lib/results'
+import { isoDate } from '../lib/time'
 import type {
   ActivityWithId,
   ClassRoomWithId,
@@ -164,6 +166,24 @@ export default function ActivityResults() {
           }}
         >
           {published ? '공개 취소' : '결과 공개'}
+        </button>
+        <button
+          type="button"
+          className="btn--small run__quiet"
+          disabled={busy || evaluations.length === 0}
+          title="이 활동의 요약과 평가 전체를 엑셀 파일로 받습니다. 평가한 학생의 이름이 들어 있어요."
+          onClick={() =>
+            run(
+              () =>
+                downloadWorkbook(
+                  activitySheets(activity, presentations, evaluations, students),
+                  `발표평가_${klass?.name ?? '학급'}_${activity.title}_${isoDate(activity.createdAt)}`,
+                ),
+              '엑셀 파일을 만들지 못했어요.',
+            )
+          }
+        >
+          엑셀로 내려받기
         </button>
         <Link to={`/teacher/activity/${activityId}`} className="run__link">
           진행 화면
