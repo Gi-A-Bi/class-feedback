@@ -147,12 +147,34 @@
 }
 
 .chipst {
+  min-height: var(--tap-min);
   padding: 8px 14px;
   border-radius: var(--r-button);
   background: var(--c-todo-bg);
   border: 1px solid var(--c-todo-border);
   color: var(--c-todo-text);
   font-size: 0.95rem;
+  cursor: pointer;
+}
+
+/* 아직 들어오지 않은 학생. 누를 것이 없으므로 흐리게만 보인다. */
+.chipst--away,
+.chipst--away:disabled {
+  opacity: 1;
+  border-style: dashed;
+  color: var(--c-text-sub);
+  cursor: default;
+}
+
+.chipst__away {
+  margin-left: 8px;
+  font-size: 0.75rem;
+}
+
+.run__hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--c-text-sub);
 }
 
 .chipst--done {
