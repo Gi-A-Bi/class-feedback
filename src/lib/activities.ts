@@ -158,12 +158,19 @@ export async function deleteActivity(activityId: string, classId: string): Promi
     getDocs(collection(db, 'activities', activityId, 'presentations')),
     getDocs(collection(db, 'activities', activityId, 'evaluations')),
   ])
-  const classSnap = await getDoc(doc(db, 'classes', classId))
+  const [classSnap, activitySnap] = await Promise.all([
+    getDoc(doc(db, 'classes', classId)),
+    getDoc(doc(db, 'activities', activityId)),
+  ])
+  const published = activitySnap.data()?.resultsPublished === true
   const batch = writeBatch(db)
   for (const d of presentations.docs) {
-    // 공개해 둔 결과가 있으면 학생 쪽에서도 사라지게 한다
-    for (const studentId of (d.data().studentIds ?? []) as string[]) {
-      batch.delete(recordRef(classId, studentId, activityId))
+    // 공개해 둔 결과가 있으면 학생 쪽에서도 사라지게 한다.
+    // 공개한 적이 없으면 지울 것이 없으므로 건드리지 않는다.
+    if (published) {
+      for (const studentId of (d.data().studentIds ?? []) as string[]) {
+        batch.delete(recordRef(classId, studentId, activityId))
+      }
     }
     batch.delete(d.ref)
   }
