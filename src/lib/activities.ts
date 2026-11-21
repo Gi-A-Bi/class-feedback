@@ -13,12 +13,15 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
+import { buildRecords, shuffle } from './results'
+import { toMillis } from './time'
 import {
   evaluationId,
   type Activity,
   type ActivityWithId,
   type Criterion,
   type EvaluationKind,
+  type Evaluation,
   type EvaluationWithId,
   type PresentationWithId,
 } from './types'
@@ -77,7 +80,7 @@ export function watchActivitiesOfClass(
       const rows = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }) as ActivityWithId)
         .filter((a) => a.classId === classId)
-      rows.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+      rows.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
       onChange(rows)
     },
     onError,
@@ -155,11 +158,21 @@ export async function deleteActivity(activityId: string, classId: string): Promi
     getDocs(collection(db, 'activities', activityId, 'presentations')),
     getDocs(collection(db, 'activities', activityId, 'evaluations')),
   ])
+  const classSnap = await getDoc(doc(db, 'classes', classId))
   const batch = writeBatch(db)
-  for (const d of presentations.docs) batch.delete(d.ref)
+  for (const d of presentations.docs) {
+    // 공개해 둔 결과가 있으면 학생 쪽에서도 사라지게 한다
+    for (const studentId of (d.data().studentIds ?? []) as string[]) {
+      batch.delete(recordRef(classId, studentId, activityId))
+    }
+    batch.delete(d.ref)
+  }
   for (const d of evaluations.docs) batch.delete(d.ref)
   batch.delete(doc(db, 'activities', activityId))
-  batch.update(doc(db, 'classes', classId), { currentActivityId: null })
+  // 이 활동이 지금 진행 중인 활동일 때만 학급의 표시를 지운다
+  if (classSnap.data()?.currentActivityId === activityId) {
+    batch.update(doc(db, 'classes', classId), { currentActivityId: null })
+  }
   await batch.commit()
 }
 
@@ -235,4 +248,99 @@ export async function submitEvaluation(input: {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+}
+
+// ── 발표 순서 바꾸기 ─────────────────────────────────────
+
+/** 발표 순서를 통째로 다시 매긴다. 넘겨받은 id 순서대로 1, 2, 3… 이 된다. */
+export async function setPresentationOrder(
+  activityId: string,
+  orderedIds: string[],
+): Promise<void> {
+  const db = getDb()
+  const batch = writeBatch(db)
+  orderedIds.forEach((id, index) => {
+    batch.update(doc(db, 'activities', activityId, 'presentations', id), { order: index + 1 })
+  })
+  await batch.commit()
+}
+
+/**
+ * 순서를 무작위로 섞는다. keepFirst 개까지는 그대로 두고 그 뒤만 섞는다.
+ * (수업 중에는 이미 지나간 발표와 지금 발표는 건드리지 않기 위해서다.)
+ */
+export function shuffledOrder(ids: string[], keepFirst: number): string[] {
+  return [...ids.slice(0, keepFirst), ...shuffle(ids.slice(keepFirst))]
+}
+
+// ── 결과: 검토, 숨기기, 공개 ─────────────────────────────
+
+function recordRef(classId: string, studentId: string, activityId: string) {
+  return doc(getDb(), 'classes', classId, 'students', studentId, 'records', activityId)
+}
+
+/** 교사 화면: 활동 전체의 평가를 지켜본다(검토용). */
+export function watchAllEvaluations(
+  activityId: string,
+  onChange: (rows: EvaluationWithId[]) => void,
+  onError: (e: unknown) => void,
+): () => void {
+  return onSnapshot(
+    collection(getDb(), 'activities', activityId, 'evaluations'),
+    (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as EvaluationWithId)),
+    onError,
+  )
+}
+
+/** 부적절한 코멘트가 든 평가를 숨기거나 다시 보이게 한다. */
+export async function setEvaluationHidden(
+  activityId: string,
+  evaluationDocId: string,
+  hidden: boolean,
+): Promise<void> {
+  await updateDoc(doc(getDb(), 'activities', activityId, 'evaluations', evaluationDocId), {
+    hidden,
+  })
+}
+
+/**
+ * 결과를 공개한다. 지금 있는 평가로 학생마다 요약을 계산해 써 넣는다.
+ * 이미 공개 중일 때 다시 부르면 최신 평가로 새로 계산해 덮어쓴다.
+ */
+export async function publishResults(
+  activity: ActivityWithId,
+  presentations: PresentationWithId[],
+): Promise<void> {
+  const db = getDb()
+  const evalSnap = await getDocs(collection(db, 'activities', activity.id, 'evaluations'))
+  const evaluations = evalSnap.docs.map((d) => d.data() as Evaluation)
+  const records = buildRecords(activity, presentations, evaluations)
+
+  const batch = writeBatch(db)
+  for (const [studentId, body] of records) {
+    batch.set(recordRef(activity.classId, studentId, activity.id), {
+      ...body,
+      activityId: activity.id,
+      activityCreatedAt: activity.createdAt ?? null,
+      publishedAt: serverTimestamp(),
+    })
+  }
+  batch.update(doc(db, 'activities', activity.id), { resultsPublished: true })
+  await batch.commit()
+}
+
+/** 공개를 취소한다. 학생에게 보이던 요약을 지운다. 평가 자체는 그대로 남는다. */
+export async function unpublishResults(
+  activity: ActivityWithId,
+  presentations: PresentationWithId[],
+): Promise<void> {
+  const db = getDb()
+  const batch = writeBatch(db)
+  for (const p of presentations) {
+    for (const studentId of p.studentIds) {
+      batch.delete(recordRef(activity.classId, studentId, activity.id))
+    }
+  }
+  batch.update(doc(db, 'activities', activity.id), { resultsPublished: false })
+  await batch.commit()
 }

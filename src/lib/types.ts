@@ -1,9 +1,10 @@
 // Firestore에 저장하는 모양. 기획 문서 "데이터 구조"를 따른다.
+import type { FsTime } from './time'
 
 /** teachers/{uid} */
 export interface Teacher {
   name: string
-  createdAt: number
+  createdAt: FsTime
 }
 
 /** classes/{classId} */
@@ -17,7 +18,7 @@ export interface ClassRoom {
    * 이 값을 보고 어떤 활동을 평가해야 하는지 찾는다.
    */
   currentActivityId: string | null
-  createdAt: number
+  createdAt: FsTime
 }
 
 /** classes/{classId}/students/{studentId} */
@@ -27,7 +28,7 @@ export interface Student {
   name: string
   /** 이 이름을 고른 학생 기기의 익명 계정 uid. 아직 아무도 안 골랐으면 없음. */
   claimedBy?: string
-  claimedAt?: number
+  claimedAt?: FsTime
 }
 
 /**
@@ -75,7 +76,7 @@ export interface Activity {
   currentPresentationId: string | null
   status: ActivityStatus
   resultsPublished: boolean
-  createdAt: number
+  createdAt: FsTime
 }
 
 /** activities/{activityId}/presentations/{presentationId} */
@@ -108,8 +109,8 @@ export interface Evaluation {
   comment2: string
   /** 교사가 부적절한 코멘트를 숨긴 경우 true */
   hidden: boolean
-  createdAt: number
-  updatedAt: number
+  createdAt: FsTime
+  updatedAt: FsTime
 }
 
 export interface ActivityWithId extends Activity {
@@ -129,4 +130,43 @@ export const COMMENT_MAX = 200
 
 export function evaluationId(presentationId: string, studentId: string): string {
   return `${presentationId}__${studentId}`
+}
+
+// ── 4단계: 공개된 결과 ───────────────────────────────────
+
+/**
+ * classes/{classId}/students/{studentId}/records/{activityId}
+ *
+ * 교사가 "결과 공개"를 누를 때 교사 브라우저가 계산해서 써 넣는다.
+ * 학생은 평가(evaluations)를 직접 읽지 못하고 이 문서만 읽으므로,
+ * 누가 어떤 평가를 했는지는 학생에게 넘어가지 않는다.
+ * 공개를 취소하면 이 문서를 지운다. 문서가 있다는 것이 곧 "공개 중"이다.
+ */
+export interface StudentRecord {
+  activityId: string
+  activityTitle: string
+  kind: ActivityKind
+  groupName: string
+  criteria: Criterion[]
+  /** 평가해 준 친구 수 */
+  peerCount: number
+  /** 기준 id -> 친구들이 준 점수의 평균. 평가가 없으면 빈 객체. */
+  peerAverages: Record<string, number>
+  /** 친구들이 쓴 "칭찬 한 가지". 누가 썼는지 알 수 없게 순서를 섞어 둔다. */
+  praise: string[]
+  /** 친구들이 쓴 "제안 한 가지". 마찬가지로 섞어 둔다. */
+  suggestions: string[]
+  /** 내가 한 자기 평가. 안 했으면 null. */
+  self: {
+    scores: Record<string, number>
+    comment1: string
+    comment2: string
+  } | null
+  /** 회차 순서를 정하는 데 쓴다(활동을 만든 시각). */
+  activityCreatedAt: FsTime
+  publishedAt: FsTime
+}
+
+export interface StudentRecordWithId extends StudentRecord {
+  id: string
 }

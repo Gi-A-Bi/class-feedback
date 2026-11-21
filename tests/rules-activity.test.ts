@@ -11,6 +11,7 @@ import {
 import { readFileSync } from 'node:fs'
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -433,5 +434,125 @@ describe('평가 읽기', () => {
   it('다른 교사는 남의 활동 평가를 읽을 수 없다', async () => {
     await assertFails(getDocs(collection(teacher(T_B), 'activities', ACT, 'evaluations')))
     await assertFails(getDoc(evalRef(teacher(T_B), P1, S1)))
+  })
+})
+
+describe('코멘트 숨기기', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'activities', ACT, 'evaluations', `${P1}__${S1}`), {
+        ...peerEval(S1), createdAt: new Date(), updatedAt: new Date(),
+      })
+    })
+  })
+
+  it('주인 교사는 평가를 숨기고 다시 보이게 할 수 있다', async () => {
+    const ref = evalRef(teacher(T_A), P1, S1)
+    await assertSucceeds(updateDoc(ref, { hidden: true }))
+    await assertSucceeds(updateDoc(ref, { hidden: false }))
+  })
+
+  it('교사도 점수나 코멘트 내용은 고칠 수 없다', async () => {
+    const ref = evalRef(teacher(T_A), P1, S1)
+    await assertFails(updateDoc(ref, { hidden: true, comment1: '선생님이 고쳐 씀' }))
+    await assertFails(updateDoc(ref, { scores: { content: 5, delivery: 5, material: 5 } }))
+  })
+
+  it('다른 교사는 남의 활동 평가를 숨길 수 없다', async () => {
+    await assertFails(updateDoc(evalRef(teacher(T_B), P1, S1), { hidden: true }))
+  })
+
+  it('학생은 숨김 표시를 바꿀 수 없다', async () => {
+    await assertFails(updateDoc(evalRef(student(UID_1), P1, S1), { hidden: true }))
+    await assertFails(updateDoc(evalRef(student(UID_2), P1, S1), { hidden: true }))
+  })
+})
+
+describe('공개된 결과', () => {
+  const record = {
+    activityId: ACT,
+    activityTitle: '우리 고장 소개하기',
+    kind: 'individual',
+    groupName: '',
+    criteria: [{ id: 'content', label: '내용' }],
+    peerCount: 2,
+    peerAverages: { content: 4 },
+    praise: ['목소리가 또렷했어요'],
+    suggestions: [],
+    self: null,
+    activityCreatedAt: new Date(),
+    publishedAt: new Date(),
+  }
+  const recordRef = (db: ReturnType<typeof student>, studentId: string) =>
+    doc(db, 'classes', CLASS, 'students', studentId, 'records', ACT)
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(recordRef(ctx.firestore(), S1), record)
+      await setDoc(recordRef(ctx.firestore(), S2), record)
+    })
+  })
+
+  it('학생은 자기 결과를 읽을 수 있다(하나씩도, 목록으로도)', async () => {
+    const db = student(UID_1)
+    await assertSucceeds(getDoc(recordRef(db, S1)))
+    await assertSucceeds(getDocs(collection(db, 'classes', CLASS, 'students', S1, 'records')))
+  })
+
+  it('학생은 다른 학생의 결과를 읽을 수 없다', async () => {
+    const db = student(UID_1)
+    await assertFails(getDoc(recordRef(db, S2)))
+    await assertFails(getDocs(collection(db, 'classes', CLASS, 'students', S2, 'records')))
+  })
+
+  it('이름을 고르지 않은 기기는 아무 결과도 읽을 수 없다', async () => {
+    await assertFails(getDoc(recordRef(student(UID_X), S1)))
+  })
+
+  it('아무도 고르지 않은 이름의 결과는 학생 누구도 읽을 수 없다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(recordRef(ctx.firestore(), S3), record)
+    })
+    await assertFails(getDoc(recordRef(student(UID_1), S3)))
+    await assertFails(getDoc(recordRef(student(UID_X), S3)))
+  })
+
+  it('이름이 풀린 기기는 더 이상 그 학생의 결과를 읽을 수 없다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'classes', CLASS, 'students', S1), {
+        claimedBy: null, claimedAt: null,
+      })
+    })
+    await assertFails(getDoc(recordRef(student(UID_1), S1)))
+  })
+
+  it('학생은 결과를 쓰거나 지울 수 없다', async () => {
+    const db = student(UID_1)
+    await assertFails(setDoc(recordRef(db, S1), { ...record, peerAverages: { content: 5 } }))
+    await assertFails(deleteDoc(recordRef(db, S1)))
+  })
+
+  it('주인 교사는 결과를 쓰고(공개) 지울(공개 취소) 수 있다', async () => {
+    const db = teacher(T_A)
+    await assertSucceeds(setDoc(recordRef(db, S3), record))
+    await assertSucceeds(getDocs(collection(db, 'classes', CLASS, 'students', S1, 'records')))
+    await assertSucceeds(deleteDoc(recordRef(db, S1)))
+  })
+
+  it('다른 교사는 남의 반 결과를 읽거나 쓸 수 없다', async () => {
+    const db = teacher(T_B)
+    await assertFails(getDoc(recordRef(db, S1)))
+    await assertFails(setDoc(recordRef(db, S1), record))
+    await assertFails(deleteDoc(recordRef(db, S1)))
+  })
+
+  it('공개를 취소해 문서가 없어지면 학생에게는 아무것도 보이지 않는다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(recordRef(ctx.firestore(), S1))
+    })
+    const snap = await assertSucceeds(
+      getDocs(collection(student(UID_1), 'classes', CLASS, 'students', S1, 'records')),
+    )
+    if (!snap.empty) throw new Error('공개를 취소했는데 결과가 남아 있다')
   })
 })

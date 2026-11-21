@@ -2,8 +2,7 @@ rules_version = '2';
 
 // 발표 평가 프로그램 보안 규칙
 //
-// 지금은 3단계(활동, 발표, 평가)까지 다룬다.
-// results 는 4단계에서 더한다.
+// 지금은 4단계(결과 공개, 코멘트 숨기기)까지 다룬다.
 // 여기에 적히지 않은 경로는 Firestore 기본값대로 아무도 읽고 쓰지 못한다.
 //
 // 교사  = 구글 로그인 사용자
@@ -223,7 +222,29 @@ service cloud.firestore {
         && request.resource.data.hidden == resource.data.hidden
         && isMyStudentDoc(activityId, resource.data.studentId);
 
+      // 교사는 숨김 표시만 바꿀 수 있다. 점수와 코멘트 내용은 고치지 못한다.
+      allow update: if isTeacher() && isMe(activityOwner(activityId))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden'])
+        && request.resource.data.hidden is bool;
+
       allow delete: if isTeacher() && isMe(activityOwner(activityId));
+    }
+
+    // ── 공개된 결과 ────────────────────────────────────────
+    // 교사가 "결과 공개"를 누르면 교사 브라우저가 학생마다 요약을 계산해 여기에 쓴다.
+    // 공개를 취소하면 지운다. 문서가 있다는 것이 곧 "공개 중"이라는 뜻이다.
+    // 학생은 평가(evaluations)를 읽지 못하고 이 요약만 읽으므로,
+    // 누가 어떤 평가를 했는지는 학생에게 넘어가지 않는다.
+    match /classes/{classId}/students/{studentId}/records/{activityId} {
+      // 학생은 "그 이름을 고른 기기"일 때만 그 학생의 결과를 읽는다.
+      allow read: if (isTeacher() && isMe(classOwner(classId)))
+        || (isSignedIn() && studentClaimedBy(classId, studentId) == request.auth.uid);
+
+      allow write: if isTeacher() && isMe(classOwner(classId));
+    }
+
+    function studentClaimedBy(classId, studentId) {
+      return get(/databases/$(database)/documents/classes/$(classId)/students/$(studentId)).data.claimedBy;
     }
 
     function expectedEvalId(data) {

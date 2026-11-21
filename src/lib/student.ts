@@ -1,8 +1,9 @@
 // 학생 쪽: 익명 인증, 입장 코드로 학급 찾기, 명단에서 이름 고르기.
 import { signInAnonymously } from 'firebase/auth'
-import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getAuthClient, getDb } from './firebase'
-import type { ClassRoomWithId, JoinCode } from './types'
+import { toMillis } from './time'
+import type { ClassRoomWithId, JoinCode, StudentRecordWithId } from './types'
 
 /** 학생 기기가 쓰는 익명 계정. 없으면 만든다. */
 export async function ensureStudentSignedIn(): Promise<string> {
@@ -56,6 +57,24 @@ export function watchClass(
   return onSnapshot(
     doc(getDb(), 'classes', classId),
     (snap) => onChange(snap.exists() ? ({ id: snap.id, ...snap.data() } as ClassRoomWithId) : null),
+    onError,
+  )
+}
+
+/** 내 공개된 결과를 오래된 회차부터 차례로 지켜본다. */
+export function watchMyRecords(
+  classId: string,
+  studentId: string,
+  onChange: (rows: StudentRecordWithId[]) => void,
+  onError: (e: unknown) => void,
+): () => void {
+  return onSnapshot(
+    collection(getDb(), 'classes', classId, 'students', studentId, 'records'),
+    (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as StudentRecordWithId)
+      rows.sort((a, b) => toMillis(a.activityCreatedAt) - toMillis(b.activityCreatedAt))
+      onChange(rows)
+    },
     onError,
   )
 }

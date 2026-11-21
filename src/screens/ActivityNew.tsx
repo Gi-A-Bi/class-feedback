@@ -1,7 +1,9 @@
 // 교사 2. 활동 만들기 — 제목, 기준, 발표 순서.
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ChevronDown, ChevronUp, ShuffleIcon } from '../components/Icons'
 import { createActivity } from '../lib/activities'
+import { shuffle } from '../lib/results'
 import { getClass, watchStudents } from '../lib/classes'
 import { useAuth } from '../lib/authContext'
 import { DEFAULT_CRITERIA, type ClassRoomWithId, type Criterion, type StudentWithId } from '../lib/types'
@@ -143,7 +145,27 @@ export default function ActivityNew() {
         <h2 className="card__title">발표 순서</h2>
         <p className="card__hint">
           명단 번호대로 넣어 뒀어요. 화살표로 순서를 바꾸거나 오늘 발표하지 않는 학생은 뺄 수 있어요.
+          순서는 활동을 만든 뒤에도, 수업 중에도 진행 화면에서 바꿀 수 있습니다.
         </p>
+        <div className="row" style={{ marginBottom: 14 }}>
+          <button
+            type="button"
+            className="btn--quiet btn--small"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            onClick={() => setOrder((prev) => shuffle(prev))}
+            disabled={order.length < 2}
+          >
+            <ShuffleIcon size={16} />
+            무작위로 섞기
+          </button>
+          <button
+            type="button"
+            className="btn--quiet btn--small"
+            onClick={() => setOrder(students.map((s) => s.id))}
+          >
+            번호순으로 되돌리기
+          </button>
+        </div>
         {order.length === 0 ? (
           <p className="empty">발표할 학생이 없어요. 명단을 먼저 등록해 주세요.</p>
         ) : (
@@ -156,11 +178,11 @@ export default function ActivityNew() {
                   <span className="orderlist__name">
                     {s ? `${s.number}번 ${s.name}` : '(지워진 학생)'}
                   </span>
-                  <button type="button" className="btn--quiet btn--small" onClick={() => move(i, -1)} disabled={i === 0} aria-label="위로">
-                    ↑
+                  <button type="button" className="btn--quiet btn--small" onClick={() => move(i, -1)} disabled={i === 0} aria-label="앞으로">
+                    <ChevronUp size={16} />
                   </button>
-                  <button type="button" className="btn--quiet btn--small" onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label="아래로">
-                    ↓
+                  <button type="button" className="btn--quiet btn--small" onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label="뒤로">
+                    <ChevronDown size={16} />
                   </button>
                   <button type="button" className="btn--danger btn--small" onClick={() => removeAt(i)}>
                     빼기

@@ -15,6 +15,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
+import { toMillis } from './time'
 import { generateJoinCode } from './joinCode'
 import type { ClassRoomWithId, StudentWithId } from './types'
 
@@ -30,7 +31,7 @@ export function watchMyClasses(
     q,
     (snap) => {
       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ClassRoomWithId)
-      rows.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+      rows.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
       onChange(rows)
     },
     onError,
@@ -185,20 +186,62 @@ export function parseRoster(text: string): {
   return { students, problems }
 }
 
-/** 명단을 통째로 바꾼다. 기존 명단은 지우고 새로 넣는다. */
+/** 붙여넣은 명단을 적용하면 무엇이 달라지는지. 저장하기 전에 보여 준다. */
+export interface RosterChange {
+  added: ParsedStudent[]
+  renamed: { number: number; from: string; to: string }[]
+  removed: { number: number; name: string }[]
+  unchanged: number
+}
+
+export function planRosterChange(
+  existing: { number: number; name: string }[],
+  incoming: ParsedStudent[],
+): RosterChange {
+  const byNumber = new Map(existing.map((s) => [s.number, s]))
+  const incomingNumbers = new Set(incoming.map((s) => s.number))
+  const change: RosterChange = { added: [], renamed: [], removed: [], unchanged: 0 }
+  for (const s of incoming) {
+    const before = byNumber.get(s.number)
+    if (!before) change.added.push(s)
+    else if (before.name !== s.name) change.renamed.push({ number: s.number, from: before.name, to: s.name })
+    else change.unchanged += 1
+  }
+  for (const s of existing) {
+    if (!incomingNumbers.has(s.number)) change.removed.push({ number: s.number, name: s.name })
+  }
+  return change
+}
+
+/**
+ * 붙여넣은 명단을 적용한다.
+ * 번호가 같은 학생은 문서를 그대로 두고 이름만 고친다. 학생 문서 id 가 바뀌면
+ * 지난 활동의 발표 순서와 쌓인 기록이 그 학생을 가리키지 못하게 되기 때문이다.
+ * 새 명단에 없는 번호는 지우고, 새로 생긴 번호는 더한다.
+ */
 export async function replaceRoster(
   classId: string,
   students: ParsedStudent[],
 ): Promise<void> {
   const db = getDb()
   const existing = await getDocs(collection(db, 'classes', classId, 'students'))
+  const byNumber = new Map(existing.docs.map((d) => [d.data().number as number, d]))
+  const incomingNumbers = new Set(students.map((s) => s.number))
+
   const batch = writeBatch(db)
-  for (const s of existing.docs) batch.delete(s.ref)
   for (const s of students) {
-    batch.set(doc(collection(db, 'classes', classId, 'students')), {
-      number: s.number,
-      name: s.name,
-    })
+    const before = byNumber.get(s.number)
+    if (!before) {
+      batch.set(doc(collection(db, 'classes', classId, 'students')), {
+        number: s.number,
+        name: s.name,
+      })
+    } else if (before.data().name !== s.name) {
+      batch.update(before.ref, { name: s.name })
+    }
+  }
+  for (const d of existing.docs) {
+    if (!incomingNumbers.has(d.data().number as number)) batch.delete(d.ref)
   }
   await batch.commit()
 }
