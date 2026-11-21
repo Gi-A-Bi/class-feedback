@@ -1,11 +1,16 @@
 // 교사 3. 진행 — 지금 발표자, 제출 현황, 이전·다음 발표자.
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ChevronDown, ChevronUp, ShuffleIcon } from '../components/Icons'
 import {
   deleteActivity,
   endActivity,
   goToPresentation,
+  publishResults,
+  setPresentationOrder,
+  shuffledOrder,
   startActivity,
+  unpublishResults,
   watchActivity,
   watchEvaluations,
   watchPresentations,
@@ -118,6 +123,28 @@ export default function ActivityRun() {
           </span>
         )}
         <span className="run__spacer" />
+        <span className="run__pub">
+          {activity.resultsPublished ? '결과를 학생에게 공개 중' : '결과는 아직 학생에게 보이지 않아요'}
+        </span>
+        <Link to={`/teacher/activity/${activityId}/results`} className="run__link">
+          결과 보기
+        </Link>
+        <button
+          type="button"
+          className={`btn--small ${activity.resultsPublished ? 'run__quiet' : 'run__primary'}`}
+          disabled={busy}
+          onClick={() => {
+            if (activity.resultsPublished) {
+              if (!window.confirm('결과 공개를 취소할까요?\n학생들의 "내 기록"에서 이 활동이 사라집니다. 평가는 지워지지 않아요.')) return
+              run(() => unpublishResults(activity, presentations), '공개를 취소하지 못했어요.')
+            } else {
+              if (!window.confirm('결과를 공개할까요?\n학생들이 "내 기록"에서 자기 결과를 보게 됩니다.\n\n코멘트를 먼저 살펴보려면 취소를 누르고 "결과 보기"로 가세요.')) return
+              run(() => publishResults(activity, presentations), '공개하지 못했어요.')
+            }
+          }}
+        >
+          {activity.resultsPublished ? '공개 취소' : '결과 공개'}
+        </button>
         <button type="button" className="btn--small run__quiet" onClick={() => navigate(`/teacher/class/${activity.classId}`)}>
           학급으로
         </button>
@@ -149,7 +176,9 @@ export default function ActivityRun() {
           ) : activity.status === 'ended' ? (
             <div className="run__ready">
               <p className="run__readyText">활동이 끝났어요.</p>
-              <p className="card__hint">결과 공개와 코멘트 검토는 다음 단계에서 만듭니다.</p>
+              <Link to={`/teacher/activity/${activityId}/results`}>
+                <button type="button">결과 보고 코멘트 살펴보기</button>
+              </Link>
             </div>
           ) : (
             <>
@@ -239,18 +268,90 @@ export default function ActivityRun() {
         </section>
 
         <aside className="run__side">
-          <h2 className="run__sideTitle">발표 순서</h2>
-          <ol className="run__list">
-            {presentations.map((p, i) => (
-              <li
-                key={p.id}
-                className={`run__listItem${p.id === currentId ? ' run__listItem--now' : ''}`}
+          <div className="run__sideHead">
+            <h2 className="run__sideTitle">발표 순서</h2>
+            {activity.status !== 'ended' && presentations.length > 1 && (
+              <button
+                type="button"
+                className="btn--quiet btn--small run__shuffle"
+                disabled={busy || index >= presentations.length - 2}
+                title={
+                  activity.status === 'running'
+                    ? '지금 발표 뒤의 순서만 무작위로 섞습니다'
+                    : '발표 순서를 무작위로 섞습니다'
+                }
+                onClick={() => {
+                  const ids = presentations.map((p) => p.id)
+                  // 수업 중에는 지나간 발표와 지금 발표는 그대로 두고 그 뒤만 섞는다
+                  const keep = activity.status === 'running' ? index + 1 : 0
+                  run(() => setPresentationOrder(activityId, shuffledOrder(ids, keep)), '섞지 못했어요.')
+                }}
               >
-                <span className="run__listPos">{i + 1}</span>
-                <span>{nameOf(p.studentIds[0])}</span>
-              </li>
-            ))}
+                <ShuffleIcon size={16} />
+                {activity.status === 'running' ? '남은 순서 섞기' : '무작위로 섞기'}
+              </button>
+            )}
+          </div>
+          <ol className="run__list">
+            {presentations.map((p, i) => {
+              const isNow = p.id === currentId
+              const move = (delta: number) => {
+                const ids = presentations.map((x) => x.id)
+                const target = i + delta
+                if (target < 0 || target >= ids.length) return
+                ;[ids[i], ids[target]] = [ids[target], ids[i]]
+                run(() => setPresentationOrder(activityId, ids), '순서를 바꾸지 못했어요.')
+              }
+              return (
+                <li key={p.id} className={`run__listItem${isNow ? ' run__listItem--now' : ''}`}>
+                  <span className="run__listPos">{i + 1}</span>
+                  {activity.status === 'running' && !isNow ? (
+                    <button
+                      type="button"
+                      className="run__jump"
+                      disabled={busy}
+                      title="이 학생의 발표로 바로 넘어갑니다"
+                      onClick={() => {
+                        if (!window.confirm(`${nameOf(p.studentIds[0])}의 발표로 바로 넘어갈까요?`)) return
+                        run(() => goToPresentation(activityId, p.id), '넘기지 못했어요.')
+                      }}
+                    >
+                      {nameOf(p.studentIds[0])}
+                    </button>
+                  ) : (
+                    <span className="run__listName">{nameOf(p.studentIds[0])}</span>
+                  )}
+                  {activity.status !== 'ended' && (
+                    <>
+                      <button
+                        type="button"
+                        className="run__move"
+                        disabled={busy || i === 0}
+                        onClick={() => move(-1)}
+                        aria-label={`${nameOf(p.studentIds[0])} 순서를 앞으로`}
+                      >
+                        <ChevronUp />
+                      </button>
+                      <button
+                        type="button"
+                        className="run__move"
+                        disabled={busy || i === presentations.length - 1}
+                        onClick={() => move(1)}
+                        aria-label={`${nameOf(p.studentIds[0])} 순서를 뒤로`}
+                      >
+                        <ChevronDown />
+                      </button>
+                    </>
+                  )}
+                </li>
+              )
+            })}
           </ol>
+          {activity.status === 'running' && (
+            <p className="run__hint" style={{ marginBottom: 14 }}>
+              이름을 누르면 그 학생의 발표로 바로 넘어가고, 화살표로 순서를 바꿉니다.
+            </p>
+          )}
           <button
             type="button"
             className="btn--danger btn--small"

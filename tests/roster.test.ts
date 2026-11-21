@@ -1,6 +1,6 @@
 // 명단 붙여넣기 해석기 테스트. 선생님이 실제로 붙여넣을 법한 모양을 넣어 본다.
 import { describe, expect, it } from 'vitest'
-import { parseRoster } from '../src/lib/classes'
+import { parseRoster, planRosterChange } from '../src/lib/classes'
 import { generateJoinCode, isValidJoinCodeShape, normalizeJoinCode } from '../src/lib/joinCode'
 
 describe('명단 붙여넣기', () => {
@@ -96,5 +96,46 @@ describe('입장 코드', () => {
     expect(isValidJoinCodeShape('ABC23')).toBe(false)
     expect(isValidJoinCodeShape('ABC2340')).toBe(false)
     expect(isValidJoinCodeShape('ABC23O')).toBe(false)
+  })
+})
+
+describe('명단을 다시 붙여넣을 때 달라지는 것', () => {
+  const existing = [
+    { number: 1, name: '김하늘' },
+    { number: 2, name: '이바다' },
+    { number: 3, name: '박나무' },
+  ]
+
+  it('똑같은 명단이면 아무것도 바뀌지 않는다', () => {
+    const c = planRosterChange(existing, existing)
+    expect(c).toEqual({ added: [], renamed: [], removed: [], unchanged: 3 })
+  })
+
+  it('번호가 같고 이름이 다르면 이름만 바뀐다', () => {
+    const c = planRosterChange(existing, [
+      { number: 1, name: '김하늘' },
+      { number: 2, name: '이바당' },
+      { number: 3, name: '박나무' },
+    ])
+    expect(c.renamed).toEqual([{ number: 2, from: '이바다', to: '이바당' }])
+    expect(c.unchanged).toBe(2)
+    expect(c.removed).toEqual([])
+  })
+
+  it('전학 온 학생은 더해지고, 명단에 없는 번호는 빠진다', () => {
+    const c = planRosterChange(existing, [
+      { number: 1, name: '김하늘' },
+      { number: 3, name: '박나무' },
+      { number: 4, name: '최산들' },
+    ])
+    expect(c.added).toEqual([{ number: 4, name: '최산들' }])
+    expect(c.removed).toEqual([{ number: 2, name: '이바다' }])
+    expect(c.unchanged).toBe(2)
+  })
+
+  it('처음 넣는 명단은 모두 새 학생이다', () => {
+    const c = planRosterChange([], existing)
+    expect(c.added).toHaveLength(3)
+    expect(c.removed).toEqual([])
   })
 })

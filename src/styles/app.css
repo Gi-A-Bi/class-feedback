@@ -345,3 +345,22 @@ label {
   font-size: 0.75rem;
   vertical-align: middle;
 }
+
+.starmeter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.starmeter__num {
+  min-width: 2.2em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.msg--ok {
+  background: var(--c-done-bg);
+  color: var(--c-done-text);
+}

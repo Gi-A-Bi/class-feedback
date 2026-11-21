@@ -59,7 +59,7 @@
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 340px;
   gap: 20px;
   padding: 22px 24px 32px;
   align-items: start;
@@ -213,10 +213,91 @@
 .run__listItem {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: 6px;
+  min-height: var(--tap-min);
+  padding: 0 4px 0 10px;
   border-radius: 10px;
   font-size: 0.95rem;
+}
+
+.run__listName,
+.run__jump {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+/* 이름을 누르면 그 발표로 바로 간다. 글자처럼 보이되 누를 수 있다. */
+.run__jump {
+  min-height: var(--tap-min);
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--c-text);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.run__jump:hover:not(:disabled) {
+  color: var(--c-primary);
+  text-decoration: underline;
+}
+
+.run__move {
+  flex: none;
+  width: 36px;
+  min-height: var(--tap-min);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--c-text-sub);
+}
+
+.run__move:hover:not(:disabled) {
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.run__move:disabled {
+  opacity: 0.25;
+}
+
+.run__sideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.run__sideHead .run__sideTitle {
+  margin-bottom: 0;
+}
+
+.run__shuffle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.run__pub {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.run__link {
+  color: var(--c-bar-text);
+  font-size: 0.9rem;
+}
+
+.run__primary {
+  background: var(--c-bar-text);
+  border-color: var(--c-bar-text);
+  color: var(--c-bar-bg);
 }
 
 .run__listItem--now {

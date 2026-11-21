@@ -7,6 +7,7 @@ import {
   deleteStudent,
   getClass,
   parseRoster,
+  planRosterChange,
   releaseAllClaims,
   releaseClaim,
   renameClass,
@@ -121,7 +122,9 @@ export default function ClassDetail() {
     return <p className="spinner">불러오는 중…</p>
   }
 
-  const willReplace = (students?.length ?? 0) > 0
+  // 저장하면 무엇이 달라지는지 미리 알려 준다
+  const change = planRosterChange(students ?? [], preview.students)
+  const hasExisting = (students?.length ?? 0) > 0
 
   return (
     <>
@@ -196,6 +199,9 @@ export default function ClassDetail() {
                 </Link>
                 <span className="classlist__code">
                   {a.status === 'ready' ? '준비' : a.status === 'running' ? '진행 중' : '끝남'}
+                  {a.resultsPublished ? ' · 결과 공개 중' : ''}
+                  {' · '}
+                  <Link to={`/teacher/activity/${a.id}/results`}>결과</Link>
                 </span>
               </li>
             ))}
@@ -207,7 +213,8 @@ export default function ClassDetail() {
         <h2 className="card__title">명단 붙여넣기</h2>
         <p className="card__hint">
           엑셀이나 한글에서 번호와 이름을 복사해 그대로 붙여넣으세요. 한 줄에 한 명씩이면 됩니다.
-          번호가 없으면 위에서부터 1번으로 매깁니다.
+          번호가 없으면 위에서부터 1번으로 매깁니다. 이미 명단이 있을 때는 번호가 같은 학생의 이름만
+          고쳐지고, 붙여넣은 명단에 없는 번호는 빠집니다.
         </p>
         <textarea
           value={roster}
@@ -240,10 +247,32 @@ export default function ClassDetail() {
                 </ul>
               </div>
             )}
-            {willReplace && preview.students.length > 0 && (
-              <p className="msg msg--warn">
-                지금 있는 명단 {students?.length}명은 지워지고 새 명단으로 바뀝니다.
-              </p>
+            {hasExisting && preview.students.length > 0 && (
+              <div className="msg msg--warn">
+                <strong>저장하면 이렇게 바뀝니다</strong>
+                <ul style={{ margin: '6px 0 0', paddingLeft: '1.2em' }}>
+                  <li>그대로인 학생 {change.unchanged}명 (지난 기록이 그대로 이어집니다)</li>
+                  {change.renamed.length > 0 && (
+                    <li>
+                      이름이 바뀌는 학생 {change.renamed.length}명:{' '}
+                      {change.renamed.map((r) => `${r.number}번 ${r.from} → ${r.to}`).join(', ')}
+                    </li>
+                  )}
+                  {change.added.length > 0 && (
+                    <li>
+                      새로 들어오는 학생 {change.added.length}명:{' '}
+                      {change.added.map((a) => `${a.number}번 ${a.name}`).join(', ')}
+                    </li>
+                  )}
+                  {change.removed.length > 0 && (
+                    <li>
+                      <strong>명단에서 빠지는 학생 {change.removed.length}명</strong>:{' '}
+                      {change.removed.map((r) => `${r.number}번 ${r.name}`).join(', ')} — 이 학생의
+                      지난 기록은 더 이상 볼 수 없게 됩니다.
+                    </li>
+                  )}
+                </ul>
+              </div>
             )}
             <div className="row" style={{ marginTop: 16 }}>
               <button

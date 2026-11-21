@@ -8,6 +8,7 @@ import ClassList from './screens/ClassList'
 import ClassDetail from './screens/ClassDetail'
 import ActivityNew from './screens/ActivityNew'
 import ActivityRun from './screens/ActivityRun'
+import ActivityResults from './screens/ActivityResults'
 import StudentApp from './screens/StudentApp'
 
 /** 로그인한 교사만 지나갈 수 있는 문 */
@@ -33,6 +34,7 @@ export default function App() {
         </Route>
         {/* 진행 화면은 수업 중에 띄워 두는 화면이라 머리띠를 따로 쓴다 */}
         <Route path="/teacher/activity/:activityId" element={<ActivityRun />} />
+        <Route path="/teacher/activity/:activityId/results" element={<ActivityResults />} />
       </Route>
       <Route path="/student" element={<StudentApp />} />
       <Route path="/setup" element={<SetupCheck />} />

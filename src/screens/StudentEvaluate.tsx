@@ -2,6 +2,7 @@
 // 내 차례에는 자기 평가로 바뀌고, 발표자가 바뀌면 화면이 저절로 넘어간다.
 import { useEffect, useMemo, useState } from 'react'
 import EvaluationForm from './EvaluationForm'
+import StudentRecords from './StudentRecords'
 import { watchActivity, watchPresentations } from '../lib/activities'
 import { watchStudents } from '../lib/classes'
 import { clearSession, currentUid, releaseStudent, watchClass, type StudentSession } from '../lib/student'
@@ -21,6 +22,8 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
   const [students, setStudents] = useState<StudentWithId[] | null>(null)
 
   const [error, setError] = useState<string | null>(null)
+  // "내 기록"을 연 순간의 발표 id. 발표자가 바뀌면 값이 달라져 기록 화면이 저절로 닫힌다.
+  const [recordsOpenedAt, setRecordsOpenedAt] = useState<string | null>(null)
 
   // 학급 문서를 보고 지금 진행 중인 활동을 찾는다
   useEffect(() => {
@@ -83,12 +86,22 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
   }
 
   // ── 기다리는 화면들 ────────────────────────────────────
-  if (activityId === null) return <WaitScreen session={session} text="준비하고 있어요…" onLeave={handleLeave} />
+  // 지금 평가할 발표가 무엇인지. 진행 중인 발표가 없으면 'none'.
+  const running =
+    activityId !== null && activityId !== 'none' && activity?.id === activityId && activity.status === 'running'
+  const viewKey = running ? (activity?.currentPresentationId ?? 'none') : 'none'
+  const openRecords = () => setRecordsOpenedAt(viewKey)
+
+  if (recordsOpenedAt === viewKey) {
+    return <StudentRecords session={session} onBack={() => setRecordsOpenedAt(null)} />
+  }
+
+  if (activityId === null) return <WaitScreen session={session} text="준비하고 있어요…" onLeave={handleLeave} onRecords={openRecords} />
   if (activityId === 'none' || !activity || activity.status !== 'running') {
-    return <WaitScreen session={session} text="선생님이 시작하면 바로 보여요." onLeave={handleLeave} />
+    return <WaitScreen session={session} text="선생님이 시작하면 바로 보여요." onLeave={handleLeave} onRecords={openRecords} />
   }
   if (!current) {
-    return <WaitScreen session={session} text="첫 발표를 기다리고 있어요." onLeave={handleLeave} />
+    return <WaitScreen session={session} text="첫 발표를 기다리고 있어요." onLeave={handleLeave} onRecords={openRecords} />
   }
 
   const toneClass = isSelf ? ' eval--self' : ''
@@ -102,6 +115,9 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
         <span className="eval__me">
           {session.studentNumber}번 {session.studentName}
         </span>
+        <button type="button" className="btn--small eval__out" onClick={openRecords}>
+          내 기록
+        </button>
         <button type="button" className="btn--small eval__out" onClick={handleLeave}>
           나가기
         </button>
@@ -148,10 +164,12 @@ function WaitScreen({
   session,
   text,
   onLeave,
+  onRecords,
 }: {
   session: StudentSession
   text: string
   onLeave: () => void
+  onRecords: () => void
 }) {
   return (
     <div className="eval">
@@ -162,6 +180,9 @@ function WaitScreen({
         <span className="eval__me">
           {session.studentNumber}번 {session.studentName}
         </span>
+        <button type="button" className="btn--small eval__out" onClick={onRecords}>
+          내 기록
+        </button>
         <button type="button" className="btn--small eval__out" onClick={onLeave}>
           나가기
         </button>

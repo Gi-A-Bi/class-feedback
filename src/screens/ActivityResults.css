@@ -1,0 +1,135 @@
+.results {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 22px 24px 48px;
+}
+
+.results__lead {
+  margin: 0 0 18px;
+  color: var(--c-text-sub);
+  font-size: 0.95rem;
+}
+
+.results__card {
+  padding: 20px 22px;
+}
+
+.results__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.results__pos {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 10px;
+  border-radius: 8px;
+  background: var(--c-bg);
+  color: var(--c-text-sub);
+  font-family: var(--f-body);
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.results__count {
+  color: var(--c-text-sub);
+  font-size: 0.9rem;
+}
+
+.results__avgs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 12px 0 16px;
+}
+
+.results__avg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.results__avgLabel {
+  color: var(--c-text-sub);
+  font-size: 0.9rem;
+}
+
+.results__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.results__table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--c-text-sub);
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+
+.results__table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--c-border);
+  vertical-align: top;
+}
+
+.results__table tr:last-child td {
+  border-bottom: none;
+}
+
+.results__table td:first-child {
+  white-space: nowrap;
+}
+
+.results__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  width: 3.5em;
+}
+
+.results__table th.results__num {
+  text-align: right;
+}
+
+.results__comment {
+  min-width: 180px;
+  word-break: break-word;
+}
+
+.results__none {
+  color: var(--c-todo-border);
+}
+
+.results__row--self td {
+  background: var(--c-self-bg);
+}
+
+.results__row--hidden .results__comment {
+  color: var(--c-text-sub);
+  text-decoration: line-through;
+}
+
+.results__tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--c-self-border);
+  color: var(--c-text);
+  font-size: 0.75rem;
+}
+
+.results__tag--hidden {
+  background: var(--c-bg);
+  border: 1px solid var(--c-todo-border);
+  color: var(--c-todo-text);
+}
