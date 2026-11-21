@@ -178,11 +178,18 @@ export default function ClassDetail() {
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <h2 className="card__title">활동</h2>
-          <Link to={`/teacher/class/${classId}/new-activity`}>
-            <button type="button" disabled={(students?.length ?? 0) === 0}>
-              활동 만들기
-            </button>
-          </Link>
+          <div className="row">
+            <Link to={`/teacher/class/${classId}/records`}>
+              <button type="button" className="btn--quiet">
+                누적 기록 · 엑셀
+              </button>
+            </Link>
+            <Link to={`/teacher/class/${classId}/new-activity`}>
+              <button type="button" disabled={(students?.length ?? 0) === 0}>
+                활동 만들기
+              </button>
+            </Link>
+          </div>
         </div>
         {(students?.length ?? 0) === 0 ? (
           <p className="card__hint" style={{ marginTop: 10 }}>

@@ -9,10 +9,17 @@ import { shuffle } from '../lib/results'
 import { getClass, watchStudents } from '../lib/classes'
 import { useAuth } from '../lib/authContext'
 import {
+  CRITERIA_SET_MAX,
+  deleteCriteriaSet,
+  saveCriteriaSet,
+  watchCriteriaSets,
+} from '../lib/teachers'
+import {
   DEFAULT_CRITERIA,
   type ActivityKind,
   type ActivityWithId,
   type ClassRoomWithId,
+  type CriteriaSet,
   type Criterion,
   type StudentWithId,
 } from '../lib/types'
@@ -33,6 +40,9 @@ export default function ActivityNew() {
   const [loadingPrevious, setLoadingPrevious] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sets, setSets] = useState<CriteriaSet[]>([])
+  const [setName, setSetName] = useState('')
+  const [setNotice, setSetNotice] = useState<string | null>(null)
 
   useEffect(() => {
     getClass(classId).then(setKlass).catch(() => setError('학급을 불러오지 못했어요.'))
@@ -48,6 +58,38 @@ export default function ActivityNew() {
       () => setError('명단을 불러오지 못했어요.'),
     )
   }, [classId])
+
+  // 저장해 둔 기준 묶음
+  useEffect(() => {
+    if (!teacher) return
+    return watchCriteriaSets(teacher.uid, setSets, () => undefined)
+  }, [teacher])
+
+  async function handleSaveSet() {
+    const name = setName.trim()
+    if (!teacher || !name || cleanCriteria.length === 0) return
+    const exists = sets.some((x) => x.name === name)
+    if (exists && !window.confirm(`"${name}" 묶음이 이미 있어요. 지금 기준으로 바꿔 넣을까요?`)) return
+    setSetNotice(null)
+    try {
+      await saveCriteriaSet(teacher.uid, teacher.displayName ?? '', sets, name, cleanCriteria)
+      setSetName('')
+      setSetNotice(`"${name}" 묶음으로 저장했어요. 다음 활동에서 불러올 수 있습니다.`)
+    } catch {
+      setSetNotice('묶음을 저장하지 못했어요. 보안 규칙을 새로 올렸는지 확인해 주세요.')
+    }
+  }
+
+  async function handleDeleteSet(set: CriteriaSet) {
+    if (!teacher) return
+    if (!window.confirm(`"${set.name}" 묶음을 지울까요?\n이미 만든 활동의 기준은 그대로 남습니다.`)) return
+    try {
+      await deleteCriteriaSet(teacher.uid, teacher.displayName ?? '', sets, set.id)
+      setSetNotice(null)
+    } catch {
+      setSetNotice('묶음을 지우지 못했어요.')
+    }
+  }
 
   // 이 학급에서 전에 했던 모둠 활동(모둠 편성을 다시 쓰기 위해)
   useEffect(() => {
@@ -213,6 +255,68 @@ export default function ActivityNew() {
         >
           기준 더하기
         </button>
+
+        <div className="critsets">
+          <h3 className="critsets__title">기준 묶음</h3>
+          <p className="card__hint" style={{ marginBottom: 10 }}>
+            자주 쓰는 기준을 이름을 붙여 저장해 두면 다음 활동에서 한 번에 불러올 수 있어요.
+          </p>
+          {sets.length > 0 && (
+            <ul className="critsets__list">
+              {sets.map((set) => (
+                <li key={set.id} className="critsets__item">
+                  <span className="critsets__name">
+                    <strong>{set.name}</strong>
+                    <span className="critsets__labels">{set.criteria.map((c) => c.label).join(' · ')}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn--quiet btn--small"
+                    onClick={() => {
+                      setCriteria(set.criteria.map((c) => ({ ...c })))
+                      setSetNotice(`"${set.name}" 묶음을 불러왔어요.`)
+                    }}
+                    aria-label={`${set.name} 묶음 불러오기`}
+                  >
+                    불러오기
+                  </button>
+                  <button
+                    type="button"
+                    className="btn--danger btn--small"
+                    onClick={() => handleDeleteSet(set)}
+                    aria-label={`${set.name} 묶음 지우기`}
+                  >
+                    지우기
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="row">
+            <input
+              type="text"
+              value={setName}
+              onChange={(e) => setSetName(e.target.value)}
+              placeholder="묶음 이름 (예: 말하기 발표)"
+              maxLength={20}
+              aria-label="기준 묶음 이름"
+              style={{ minHeight: 36, padding: '4px 12px', width: 220 }}
+            />
+            <button
+              type="button"
+              className="btn--ghost btn--small"
+              onClick={handleSaveSet}
+              disabled={
+                !setName.trim() ||
+                cleanCriteria.length === 0 ||
+                (sets.length >= CRITERIA_SET_MAX && !sets.some((x) => x.name === setName.trim()))
+              }
+            >
+              지금 기준을 묶음으로 저장
+            </button>
+          </div>
+          {setNotice && <p className="card__hint" style={{ margin: '10px 0 0' }}>{setNotice}</p>}
+        </div>
       </div>
 
       {kind === 'individual' ? (

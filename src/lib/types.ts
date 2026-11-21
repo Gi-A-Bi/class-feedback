@@ -1,10 +1,19 @@
 // Firestore에 저장하는 모양. 기획 문서 "데이터 구조"를 따른다.
 import type { FsTime } from './time'
 
+/** 교사가 이름을 붙여 저장해 둔 평가 기준 묶음 */
+export interface CriteriaSet {
+  id: string
+  name: string
+  criteria: Criterion[]
+}
+
 /** teachers/{uid} */
 export interface Teacher {
   name: string
   createdAt: FsTime
+  /** 저장한 기준 묶음. 아직 저장한 적이 없으면 없다. */
+  criteriaSets?: CriteriaSet[]
 }
 
 /** classes/{classId} */
@@ -168,5 +177,40 @@ export interface StudentRecord {
 }
 
 export interface StudentRecordWithId extends StudentRecord {
+  id: string
+}
+
+// ── 6단계: 누적 기록 ─────────────────────────────────────
+
+/** 한 학생이 한 활동에서 받은 점수 요약. 코멘트는 담지 않는다. */
+export interface LedgerEntry {
+  /** 모둠 발표였으면 모둠 이름, 개인 발표였으면 빈 문자열 */
+  groupName: string
+  peerCount: number
+  /** 기준 id -> 친구들이 준 점수의 평균 */
+  peerAverages: Record<string, number>
+  /** 기준 id -> 자기 평가 점수. 자기 평가를 안 했으면 null */
+  selfScores: Record<string, number> | null
+}
+
+/**
+ * classes/{classId}/ledger/{activityId}
+ *
+ * 교사만 읽는 활동별 점수 요약. 학급의 누적 기록을 볼 때 평가를 하나하나
+ * 다시 읽지 않도록(무료 요금제의 읽기 한도를 아끼려고) 활동이 끝날 때 한 번 적어 둔다.
+ * 결과를 학생에게 공개했는지와는 상관없다.
+ */
+export interface Ledger {
+  activityId: string
+  title: string
+  kind: ActivityKind
+  criteria: Criterion[]
+  activityCreatedAt: FsTime
+  updatedAt: FsTime
+  /** 학생 id -> 그 학생의 요약. 발표하지 않은 학생은 없다. */
+  entries: Record<string, LedgerEntry>
+}
+
+export interface LedgerWithId extends Ledger {
   id: string
 }

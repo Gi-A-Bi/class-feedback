@@ -556,3 +556,51 @@ describe('공개된 결과', () => {
     if (!snap.empty) throw new Error('공개를 취소했는데 결과가 남아 있다')
   })
 })
+
+describe('누적 기록(교사용 요약)', () => {
+  const ledger = {
+    activityId: ACT,
+    title: '우리 고장 소개하기',
+    kind: 'individual',
+    criteria: [{ id: 'content', label: '내용' }],
+    activityCreatedAt: new Date(),
+    updatedAt: new Date(),
+    entries: {
+      [S1]: { groupName: '', peerCount: 2, peerAverages: { content: 4 }, selfScores: { content: 5 } },
+      [S2]: { groupName: '', peerCount: 2, peerAverages: { content: 2 }, selfScores: null },
+    },
+  }
+  const ledgerRef = (db: ReturnType<typeof student>) => doc(db, 'classes', CLASS, 'ledger', ACT)
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ledgerRef(ctx.firestore()), ledger)
+    })
+  })
+
+  it('주인 교사는 읽고 쓰고 지울 수 있다', async () => {
+    const db = teacher(T_A)
+    await assertSucceeds(getDoc(ledgerRef(db)))
+    await assertSucceeds(getDocs(collection(db, 'classes', CLASS, 'ledger')))
+    await assertSucceeds(setDoc(ledgerRef(db), ledger))
+    await assertSucceeds(deleteDoc(ledgerRef(db)))
+  })
+
+  it('학생은 읽을 수 없다 — 다른 친구들의 점수가 모여 있기 때문이다', async () => {
+    // 자기 이름을 고른 학생이어도 안 된다
+    await assertFails(getDoc(ledgerRef(student(UID_1))))
+    await assertFails(getDocs(collection(student(UID_1), 'classes', CLASS, 'ledger')))
+    await assertFails(getDoc(ledgerRef(student(UID_X))))
+  })
+
+  it('학생은 쓸 수 없다', async () => {
+    await assertFails(setDoc(ledgerRef(student(UID_1)), ledger))
+    await assertFails(deleteDoc(ledgerRef(student(UID_1))))
+  })
+
+  it('다른 교사는 읽거나 쓸 수 없다', async () => {
+    const db = teacher(T_B)
+    await assertFails(getDoc(ledgerRef(db)))
+    await assertFails(setDoc(ledgerRef(db), ledger))
+  })
+})

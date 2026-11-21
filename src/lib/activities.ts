@@ -13,6 +13,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
+import { deleteLedger, writeLedger } from './ledger'
 import { buildRecords, shuffle } from './results'
 import { toMillis } from './time'
 import {
@@ -194,6 +195,13 @@ export async function deleteActivity(activityId: string, classId: string): Promi
     batch.update(doc(db, 'classes', classId), { currentActivityId: null })
   }
   await batch.commit()
+
+  // 누적 기록에서도 뺀다. 요약이 없었을 수도 있으니 실패해도 넘어간다.
+  try {
+    await deleteLedger(classId, activityId)
+  } catch {
+    // 무시
+  }
 }
 
 /** 교사 화면: 지금 발표에 대해 들어온 평가를 지켜본다. */
@@ -347,6 +355,14 @@ export async function publishResults(
   }
   batch.update(doc(db, 'activities', activity.id), { resultsPublished: true })
   await batch.commit()
+
+  // 교사용 누적 기록도 같은 평가로 맞춰 둔다. 이건 실패해도 공개 자체는 된 것이므로
+  // 넘어간다(누적 기록 화면에서 빠진 활동을 다시 넣을 수 있다).
+  try {
+    await writeLedger(activity, presentations, evaluations)
+  } catch {
+    // 무시
+  }
 }
 
 /** 공개를 취소한다. 학생에게 보이던 요약을 지운다. 평가 자체는 그대로 남는다. */

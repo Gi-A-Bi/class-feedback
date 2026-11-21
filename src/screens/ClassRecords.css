@@ -1,0 +1,128 @@
+.crec__scroll {
+  overflow-x: auto;
+}
+
+.crec__table {
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  min-width: 100%;
+}
+
+.crec__table th,
+.crec__table td {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+
+.crec__table thead th {
+  vertical-align: bottom;
+  font-weight: 500;
+  padding-bottom: 8px;
+}
+
+.crec__name {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--c-surface);
+  font-weight: 400;
+}
+
+.crec__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.crec__actTitle {
+  display: block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crec__actSub {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--c-text-sub);
+}
+
+.crec__avg {
+  font-weight: 700;
+}
+
+.crec__pick {
+  min-height: 36px;
+  padding: 0 8px;
+  margin-left: -8px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--c-primary);
+  font-size: inherit;
+  text-align: left;
+}
+
+.crec__pick:hover {
+  text-decoration: underline;
+}
+
+.crec__row--on td,
+.crec__row--on .crec__name {
+  background: var(--c-done-bg);
+}
+
+.crec__trend {
+  max-width: 360px;
+}
+
+.crec__history {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 12px;
+}
+
+.crec__item {
+  padding: 14px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-button);
+}
+
+.crec__itemHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.crec__itemSub {
+  font-size: 0.82rem;
+  color: var(--c-text-sub);
+}
+
+.crec__meters {
+  display: grid;
+  gap: 2px;
+}
+
+.crec__metersHead,
+.crec__meterRow {
+  display: grid;
+  grid-template-columns: minmax(60px, 1fr) 150px 150px;
+  align-items: center;
+  gap: 10px;
+}
+
+.crec__metersHead {
+  font-size: 0.78rem;
+  color: var(--c-text-sub);
+}
+
+.crec__meterRow {
+  min-height: 28px;
+  font-size: 0.92rem;
+}

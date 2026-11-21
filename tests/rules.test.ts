@@ -97,6 +97,48 @@ describe('교사 문서', () => {
   })
 })
 
+describe('기준 묶음', () => {
+  const sets = [{ id: 'set1', name: '말하기', criteria: [{ id: 'c1', label: '목소리' }] }]
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'teachers', TEACHER_A), { name: '박선생', createdAt: new Date() })
+    })
+  })
+
+  it('교사는 자기 문서에 기준 묶음을 저장하고 지울 수 있다', async () => {
+    const ref = doc(teacher(TEACHER_A), 'teachers', TEACHER_A)
+    await assertSucceeds(setDoc(ref, { criteriaSets: sets }, { merge: true }))
+    await assertSucceeds(setDoc(ref, { criteriaSets: [] }, { merge: true }))
+  })
+
+  it('남의 문서에는 저장할 수 없다', async () => {
+    await assertFails(
+      setDoc(doc(teacher(TEACHER_B), 'teachers', TEACHER_A), { criteriaSets: sets }, { merge: true }),
+    )
+  })
+
+  it('묶음이 서른 개를 넘으면 거부한다', async () => {
+    const many = Array.from({ length: 31 }, (_, i) => ({ ...sets[0], id: `set${i}` }))
+    await assertFails(
+      setDoc(doc(teacher(TEACHER_A), 'teachers', TEACHER_A), { criteriaSets: many }, { merge: true }),
+    )
+  })
+
+  it('목록이 아닌 값이나 모르는 칸은 거부한다', async () => {
+    const ref = doc(teacher(TEACHER_A), 'teachers', TEACHER_A)
+    await assertFails(setDoc(ref, { criteriaSets: '목록 아님' }, { merge: true }))
+    await assertFails(setDoc(ref, { 관리자: true }, { merge: true }))
+  })
+
+  it('묶음을 저장하는 척 만든 시각을 바꿀 수 없다', async () => {
+    await assertFails(
+      setDoc(doc(teacher(TEACHER_A), 'teachers', TEACHER_A),
+        { criteriaSets: sets, createdAt: new Date(2020, 0, 1) }, { merge: true }),
+    )
+  })
+})
+
 describe('학급', () => {
   it('교사는 자기 학급을 만들 수 있다', async () => {
     const db = teacher(TEACHER_B)

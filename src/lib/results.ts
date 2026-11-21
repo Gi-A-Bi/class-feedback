@@ -2,6 +2,7 @@
 import type {
   Activity,
   Evaluation,
+  LedgerEntry,
   Presentation,
   StudentRecord,
 } from './types'
@@ -106,6 +107,32 @@ export function buildRecords(
   }
 
   return records
+}
+
+/**
+ * 활동 하나의 평가 전체를 학생별 점수 요약으로 바꾼다(교사의 누적 기록용).
+ * 코멘트는 담지 않으므로 숨김 여부와 상관없다.
+ */
+export function buildLedgerEntries(
+  activity: Pick<Activity, 'criteria'>,
+  presentations: PresentationLike[],
+  evaluations: Evaluation[],
+): Record<string, LedgerEntry> {
+  const entries: Record<string, LedgerEntry> = {}
+  for (const p of presentations) {
+    const mine = evaluations.filter((e) => e.presentationId === p.id)
+    const { peerCount, peerAverages } = summarize(activity.criteria, p, mine)
+    for (const studentId of p.studentIds) {
+      const self = mine.find((e) => e.studentId === studentId)
+      entries[studentId] = {
+        groupName: p.groupName,
+        peerCount,
+        peerAverages,
+        selfScores: self ? self.scores : null,
+      }
+    }
+  }
+  return entries
 }
 
 /** 기준별 평균들의 평균. 회차별 변화를 한 숫자로 보여 줄 때 쓴다. 평가가 없으면 null. */

@@ -17,6 +17,7 @@ import {
 } from '../lib/activities'
 import { getClass, releaseClaim, watchStudents } from '../lib/classes'
 import { presentationLabel, presentationMembers } from '../lib/groups'
+import { syncLedger } from '../lib/ledger'
 import type {
   ActivityWithId,
   ClassRoomWithId,
@@ -218,7 +219,18 @@ export default function ActivityRun() {
                     type="button"
                     className="btn--quiet"
                     disabled={busy}
-                    onClick={() => run(() => endActivity(activityId, activity.classId), '끝내지 못했어요.')}
+                    onClick={() =>
+                      run(async () => {
+                        await endActivity(activityId, activity.classId)
+                        // 누적 기록에 이 활동의 점수 요약을 적어 둔다. 실패해도 활동은 끝난 것이고,
+                        // 누적 기록 화면에서 다시 넣을 수 있다.
+                        try {
+                          await syncLedger(activity, presentations)
+                        } catch {
+                          // 무시
+                        }
+                      }, '끝내지 못했어요.')
+                    }
                   >
                     활동 끝내기
                   </button>

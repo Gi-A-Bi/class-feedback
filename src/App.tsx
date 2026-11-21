@@ -6,6 +6,7 @@ import TeacherLogin from './screens/TeacherLogin'
 import TeacherHome from './screens/TeacherHome'
 import ClassList from './screens/ClassList'
 import ClassDetail from './screens/ClassDetail'
+import ClassRecords from './screens/ClassRecords'
 import ActivityNew from './screens/ActivityNew'
 import ActivityRun from './screens/ActivityRun'
 import ActivityResults from './screens/ActivityResults'
@@ -31,6 +32,7 @@ export default function App() {
           <Route index element={<ClassList />} />
           <Route path="class/:classId" element={<ClassDetail />} />
           <Route path="class/:classId/new-activity" element={<ActivityNew />} />
+          <Route path="class/:classId/records" element={<ClassRecords />} />
         </Route>
         {/* 진행 화면은 수업 중에 띄워 두는 화면이라 머리띠를 따로 쓴다 */}
         <Route path="/teacher/activity/:activityId" element={<ActivityRun />} />
