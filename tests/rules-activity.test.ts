@@ -159,6 +159,37 @@ describe('이름 고르기', () => {
     )
   })
 
+  it('교사는 고른 이름을 풀어 줄 수 있다(앱이 쓰는 방식: 두 칸을 비운다)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(teacher(T_A), 'classes', CLASS, 'students', S1), {
+        claimedBy: null, claimedAt: null,
+      }),
+    )
+    // 풀린 이름은 다른 기기가 다시 고를 수 있다
+    await assertSucceeds(
+      updateDoc(doc(student(UID_X), 'classes', CLASS, 'students', S1), {
+        claimedBy: UID_X, claimedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  it('다른 반 교사는 남의 반 학생의 고름을 풀 수 없다', async () => {
+    await assertFails(
+      updateDoc(doc(teacher(T_B), 'classes', CLASS, 'students', S1), {
+        claimedBy: null, claimedAt: null,
+      }),
+    )
+  })
+
+  it('이름이 풀린 기기는 더 이상 그 이름으로 평가를 낼 수 없다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'classes', CLASS, 'students', S1), {
+        claimedBy: null, claimedAt: null,
+      })
+    })
+    await assertFails(setDoc(evalRef(student(UID_1), P1, S1), peerEval(S1)))
+  })
+
   it('교사는 남이 고른 것을 풀어 줄 수 있다', async () => {
     await assertSucceeds(
       setDoc(doc(teacher(T_A), 'classes', CLASS, 'students', S1), {

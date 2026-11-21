@@ -7,6 +7,8 @@ import {
   deleteStudent,
   getClass,
   parseRoster,
+  releaseAllClaims,
+  releaseClaim,
   renameClass,
   replaceRoster,
   watchStudents,
@@ -260,7 +262,27 @@ export default function ClassDetail() {
       </div>
 
       <div className="card">
-        <h2 className="card__title">지금 명단</h2>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <h2 className="card__title">지금 명단</h2>
+          {students && students.some((s) => s.claimedBy) && (
+            <button
+              type="button"
+              className="btn--quiet btn--small"
+              onClick={() => {
+                if (!window.confirm('모든 학생의 기기 연결을 풀까요?\n학생들은 입장 코드부터 다시 넣어야 합니다.')) return
+                releaseAllClaims(classId, students.filter((s) => s.claimedBy).map((s) => s.id)).catch(() =>
+                  setError('풀지 못했어요.'),
+                )
+              }}
+            >
+              기기 연결 모두 풀기
+            </button>
+          )}
+        </div>
+        <p className="card__hint">
+          학생이 태블릿에서 이름을 고르면 "기기 연결됨"으로 바뀝니다. 이름을 잘못 골랐거나 태블릿을 바꿨을 때
+          풀어 주세요.
+        </p>
         {students === null ? (
           <p className="card__hint">불러오는 중…</p>
         ) : students.length === 0 ? (
@@ -270,7 +292,20 @@ export default function ClassDetail() {
             {students.map((s) => (
               <li key={s.id} className="roster__item">
                 <span className="roster__num">{s.number}</span>
-                <span className="roster__name">{s.name}</span>
+                <span className="roster__name">
+                  {s.name}
+                  {s.claimedBy && <span className="roster__tag">기기 연결됨</span>}
+                </span>
+                {s.claimedBy && (
+                  <button
+                    type="button"
+                    className="btn--quiet btn--small"
+                    onClick={() => releaseClaim(classId, s.id).catch(() => setError('풀지 못했어요.'))}
+                    aria-label={`${s.name} 기기 연결 풀기`}
+                  >
+                    풀기
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn--danger btn--small"

@@ -7,9 +7,18 @@ import type { ClassRoomWithId, JoinCode } from './types'
 /** 학생 기기가 쓰는 익명 계정. 없으면 만든다. */
 export async function ensureStudentSignedIn(): Promise<string> {
   const auth = getAuthClient()
+  // 브라우저에 저장된 로그인 정보를 다 읽어 올 때까지 기다린다.
+  // 기다리지 않으면 "아직 아무도 없다"고 잘못 보고 익명 계정을 새로 만들어,
+  // 선생님이 로그인해 둔 브라우저에서는 선생님 로그인을 덮어써 버린다.
+  await auth.authStateReady()
   if (auth.currentUser) return auth.currentUser.uid
   const cred = await signInAnonymously(auth)
   return cred.user.uid
+}
+
+/** 지금 이 기기가 쓰는 계정 uid. 아직 준비 전이면 undefined. */
+export function currentUid(): string | undefined {
+  return getAuthClient().currentUser?.uid
 }
 
 /** 입장 코드로 학급을 찾는다. 코드 문서 하나만 읽는다. */

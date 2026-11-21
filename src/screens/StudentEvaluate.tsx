@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EvaluationForm from './EvaluationForm'
 import { watchActivity, watchPresentations } from '../lib/activities'
 import { watchStudents } from '../lib/classes'
-import { clearSession, releaseStudent, watchClass, type StudentSession } from '../lib/student'
+import { clearSession, currentUid, releaseStudent, watchClass, type StudentSession } from '../lib/student'
 import type { ActivityWithId, PresentationWithId, StudentWithId } from '../lib/types'
 import './StudentEvaluate.css'
 
@@ -17,7 +17,8 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
   const [activityId, setActivityId] = useState<string | null | 'none'>(null)
   const [activity, setActivity] = useState<ActivityWithId | null>(null)
   const [presentations, setPresentations] = useState<PresentationWithId[]>([])
-  const [students, setStudents] = useState<StudentWithId[]>([])
+  // null 은 아직 명단을 못 받았다는 뜻
+  const [students, setStudents] = useState<StudentWithId[] | null>(null)
 
   const [error, setError] = useState<string | null>(null)
 
@@ -44,8 +45,19 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
     return watchStudents(session.classId, setStudents, () => undefined)
   }, [session.classId])
 
+  // 선생님이 내 이름 고름을 풀었거나 명단이 바뀌어 내 이름이 없어졌으면,
+  // 이 기기는 더 이상 그 학생이 아니다. 입장 화면으로 돌아가 다시 고르게 한다.
+  useEffect(() => {
+    if (students === null) return
+    const me = students.find((s) => s.id === session.studentId)
+    if (!me || me.claimedBy !== currentUid()) {
+      clearSession()
+      onLeave()
+    }
+  }, [students, session.studentId, onLeave])
+
   const nameOf = useMemo(() => {
-    const map = new Map(students.map((s) => [s.id, s]))
+    const map = new Map((students ?? []).map((s) => [s.id, s]))
     return (id: string) => {
       const s = map.get(id)
       return s ? `${s.number}번 ${s.name}` : '발표자'

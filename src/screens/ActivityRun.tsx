@@ -10,7 +10,7 @@ import {
   watchEvaluations,
   watchPresentations,
 } from '../lib/activities'
-import { getClass, watchStudents } from '../lib/classes'
+import { getClass, releaseClaim, watchStudents } from '../lib/classes'
 import type {
   ActivityWithId,
   ClassRoomWithId,
@@ -205,17 +205,33 @@ export default function ActivityRun() {
                 {expected.map((s) => {
                   const done = submittedIds.has(s.id)
                   const isPresenter = current?.studentIds.includes(s.id)
+                  const joined = Boolean(s.claimedBy)
                   return (
-                    <span
+                    <button
+                      type="button"
                       key={s.id}
-                      className={`chipst${done ? ' chipst--done' : ''}${isPresenter ? ' chipst--self' : ''}`}
-                      title={isPresenter ? '지금 발표자 (자기 평가)' : undefined}
+                      className={`chipst${done ? ' chipst--done' : ''}${isPresenter ? ' chipst--self' : ''}${joined ? '' : ' chipst--away'}`}
+                      title={
+                        joined
+                          ? '누르면 이 학생의 기기 연결을 풉니다'
+                          : '아직 들어오지 않았어요'
+                      }
+                      disabled={!joined || busy}
+                      onClick={() => {
+                        if (!window.confirm(`${s.number}번 ${s.name}의 기기 연결을 풀까요?\n그 태블릿은 입장 화면으로 돌아가고, 이름을 다시 고를 수 있게 됩니다.`)) return
+                        run(() => releaseClaim(activity.classId, s.id), '풀지 못했어요.')
+                      }}
                     >
                       {s.number} {s.name}
-                    </span>
+                      {!joined && <span className="chipst__away">미입장</span>}
+                    </button>
                   )
                 })}
               </div>
+              <p className="run__hint">
+                이름을 잘못 고른 학생이 있으면 그 이름을 눌러 기기 연결을 풀어 주세요. 흐린 칸은 아직
+                들어오지 않은 학생입니다.
+              </p>
             </>
           )}
 

@@ -245,7 +245,7 @@ label {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
 }
 
@@ -333,4 +333,15 @@ label {
 
 .orderlist__name {
   flex: 1;
+}
+
+.roster__tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--c-done-bg);
+  color: var(--c-done-text);
+  font-size: 0.75rem;
+  vertical-align: middle;
 }

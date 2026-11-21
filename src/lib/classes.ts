@@ -10,6 +10,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore'
@@ -204,4 +205,25 @@ export async function replaceRoster(
 
 export async function deleteStudent(classId: string, studentId: string): Promise<void> {
   await deleteDoc(doc(getDb(), 'classes', classId, 'students', studentId))
+}
+
+/** 교사가 "다른 기기에서 고른 이름"을 풀어 준다. 그 기기는 입장 화면으로 돌아간다. */
+export async function releaseClaim(classId: string, studentId: string): Promise<void> {
+  await updateDoc(doc(getDb(), 'classes', classId, 'students', studentId), {
+    claimedBy: null,
+    claimedAt: null,
+  })
+}
+
+/** 학급 전체의 이름 고름을 한꺼번에 푼다(수업을 새로 시작할 때). */
+export async function releaseAllClaims(classId: string, studentIds: string[]): Promise<void> {
+  const db = getDb()
+  const batch = writeBatch(db)
+  for (const id of studentIds) {
+    batch.update(doc(db, 'classes', classId, 'students', id), {
+      claimedBy: null,
+      claimedAt: null,
+    })
+  }
+  await batch.commit()
 }
