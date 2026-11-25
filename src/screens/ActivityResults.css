@@ -140,3 +140,23 @@
   font-size: 0.9rem;
   color: var(--c-text-sub);
 }
+
+/* 선생님 평가 */
+.results__row--teacher td {
+  background: var(--c-bg);
+}
+
+.results__teacher {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--c-border);
+}
+
+.results__teacher summary {
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--c-primary);
+  font-weight: 500;
+}

@@ -18,6 +18,7 @@ import { buildRecords, shuffle } from './results'
 import { toMillis } from './time'
 import {
   evaluationId,
+  TEACHER_EVALUATOR_ID,
   type Activity,
   type ActivityKind,
   type ActivityWithId,
@@ -145,7 +146,7 @@ export async function startActivity(
   await batch.commit()
 }
 
-/** 이전·다음 발표자로 넘긴다. 넘기는 순간 학생들은 평가를 고칠 수 없게 된다. */
+/** 이전·다음 발표자로 넘긴다. 학생은 활동이 끝날 때까지 지난 발표의 평가를 고칠 수 있다. */
 export async function goToPresentation(
   activityId: string,
   presentationId: string,
@@ -187,6 +188,12 @@ export async function deleteActivity(activityId: string, classId: string): Promi
       }
     }
     batch.delete(d.ref)
+  }
+  // 발표는 안 하고 평가만 한 학생에게도 결과 문서("내가 준 별")가 있을 수 있다.
+  if (published) {
+    for (const studentId of evaluatorIds(evaluations.docs.map((d) => d.data() as Evaluation))) {
+      batch.delete(recordRef(classId, studentId, activityId))
+    }
   }
   for (const d of evaluations.docs) batch.delete(d.ref)
   batch.delete(doc(db, 'activities', activityId))
@@ -235,7 +242,7 @@ export async function getMyEvaluation(
   return { id: snap.id, ...snap.data() } as EvaluationWithId
 }
 
-/** 평가를 낸다. 같은 발표에 다시 내면 덮어쓴다(교사가 넘기기 전까지만 된다). */
+/** 평가를 낸다. 같은 발표에 다시 내면 덮어쓴다(활동이 진행 중인 동안에만 된다). */
 export async function submitEvaluation(input: {
   activityId: string
   presentationId: string
@@ -276,6 +283,96 @@ export async function submitEvaluation(input: {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+}
+
+/** 학생 화면: 여러 발표에 내가 낸 평가를 한꺼번에 본다. 안 낸 발표는 결과에 없다. */
+export async function getMyEvaluations(
+  activityId: string,
+  presentationIds: string[],
+  studentId: string,
+): Promise<Map<string, EvaluationWithId>> {
+  const found = await Promise.all(
+    presentationIds.map((id) => getMyEvaluation(activityId, id, studentId).catch(() => null)),
+  )
+  const map = new Map<string, EvaluationWithId>()
+  found.forEach((e, i) => {
+    if (e) map.set(presentationIds[i], e)
+  })
+  return map
+}
+
+// ── 선생님 평가 ──────────────────────────────────────────
+
+/**
+ * 선생님이 발표 하나에 준 평가를 저장한다. 친구들 평균에는 들어가지 않고 따로 보인다.
+ * 활동이 끝난 뒤에 고치면 누적 기록을, 공개 중이면 학생에게 보이는 결과도 새로 맞춘다.
+ */
+export async function saveTeacherEvaluation(
+  activity: ActivityWithId,
+  presentations: PresentationWithId[],
+  input: {
+    presentationId: string
+    scores: Record<string, number>
+    comment1: string
+    comment2: string
+    isUpdate: boolean
+  },
+): Promise<void> {
+  const ref = doc(
+    getDb(),
+    'activities',
+    activity.id,
+    'evaluations',
+    evaluationId(input.presentationId, TEACHER_EVALUATOR_ID),
+  )
+  if (input.isUpdate) {
+    await updateDoc(ref, {
+      scores: input.scores,
+      comment1: input.comment1,
+      comment2: input.comment2,
+      updatedAt: serverTimestamp(),
+    })
+  } else {
+    await setDoc(ref, {
+      presentationId: input.presentationId,
+      studentId: TEACHER_EVALUATOR_ID,
+      kind: 'teacher',
+      scores: input.scores,
+      comment1: input.comment1,
+      comment2: input.comment2,
+      hidden: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  }
+
+  if (activity.resultsPublished) {
+    await publishResults(activity, presentations) // 누적 기록도 함께 맞춘다
+  } else if (activity.status === 'ended') {
+    const snap = await getDocs(collection(getDb(), 'activities', activity.id, 'evaluations'))
+    await writeLedger(activity, presentations, snap.docs.map((d) => d.data() as Evaluation))
+  }
+}
+
+/** 한 발표에 들어온 평가를 한 번 읽는다(교사의 누적 기록에서 받은 코멘트를 볼 때). */
+export async function getEvaluationsOfPresentation(
+  activityId: string,
+  presentationId: string,
+): Promise<EvaluationWithId[]> {
+  const snap = await getDocs(
+    query(
+      collection(getDb(), 'activities', activityId, 'evaluations'),
+      where('presentationId', '==', presentationId),
+    ),
+  )
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as EvaluationWithId)
+}
+
+/** 평가를 쓴 학생들의 id(선생님은 뺀다). */
+function evaluatorIds(evaluations: Evaluation[]): Set<string> {
+  return new Set(
+    evaluations.map((e) => e.studentId).filter((id) => id && id !== TEACHER_EVALUATOR_ID),
+  )
 }
 
 // ── 발표 순서 바꾸기 ─────────────────────────────────────
@@ -343,9 +440,14 @@ export async function publishResults(
   const evalSnap = await getDocs(collection(db, 'activities', activity.id, 'evaluations'))
   const evaluations = evalSnap.docs.map((d) => d.data() as Evaluation)
   const records = buildRecords(activity, presentations, evaluations)
+  // 명단에서 지운 학생에게는 결과를 만들지 않는다. 학생 문서 없이 결과만 남으면
+  // 학급을 지울 때 찾아 지우지 못한다.
+  const roster = await getDocs(collection(db, 'classes', activity.classId, 'students'))
+  const inRoster = new Set(roster.docs.map((d) => d.id))
 
   const batch = writeBatch(db)
   for (const [studentId, body] of records) {
+    if (!inRoster.has(studentId)) continue
     batch.set(recordRef(activity.classId, studentId, activity.id), {
       ...body,
       activityId: activity.id,
@@ -371,11 +473,15 @@ export async function unpublishResults(
   presentations: PresentationWithId[],
 ): Promise<void> {
   const db = getDb()
-  const batch = writeBatch(db)
+  // 발표는 안 하고 평가만 한 학생에게도 결과 문서가 있으므로 평가한 학생도 함께 찾는다.
+  const evalSnap = await getDocs(collection(db, 'activities', activity.id, 'evaluations'))
+  const studentIds = evaluatorIds(evalSnap.docs.map((d) => d.data() as Evaluation))
   for (const p of presentations) {
-    for (const studentId of p.studentIds) {
-      batch.delete(recordRef(activity.classId, studentId, activity.id))
-    }
+    for (const studentId of p.studentIds) studentIds.add(studentId)
+  }
+  const batch = writeBatch(db)
+  for (const studentId of studentIds) {
+    batch.delete(recordRef(activity.classId, studentId, activity.id))
   }
   batch.update(doc(db, 'activities', activity.id), { resultsPublished: false })
   await batch.commit()

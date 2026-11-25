@@ -82,7 +82,7 @@
   margin: 12px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
   gap: 12px;
 }
 
@@ -112,7 +112,7 @@
 .crec__metersHead,
 .crec__meterRow {
   display: grid;
-  grid-template-columns: minmax(60px, 1fr) 150px 150px;
+  grid-template-columns: minmax(60px, 1fr) repeat(3, 130px);
   align-items: center;
   gap: 10px;
 }
@@ -125,4 +125,91 @@
 .crec__meterRow {
   min-height: 28px;
   font-size: 0.92rem;
+}
+
+/* 학생 한 명의 모아 보기 */
+.crec__tiles {
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.crec__tile {
+  padding: 12px 14px;
+  background: var(--c-bg);
+  border-radius: var(--r-button);
+}
+
+.crec__tile dt {
+  font-size: 0.82rem;
+  color: var(--c-text-sub);
+}
+
+.crec__tile dd {
+  margin: 2px 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.crec__tile small {
+  margin-left: 2px;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.crec__tile > span {
+  font-size: 0.8rem;
+  color: var(--c-text-sub);
+}
+
+.crec__dash {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(220px, 2fr);
+  gap: 16px 32px;
+  align-items: start;
+}
+
+.crec__caption {
+  margin: 0 0 6px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--c-text-sub);
+  caption-side: top;
+}
+
+.crec__comments {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--c-border);
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.crec__comments li {
+  display: grid;
+  gap: 2px;
+  word-break: break-word;
+}
+
+.crec__comments b {
+  font-weight: 500;
+  color: var(--c-text-sub);
+  margin-right: 4px;
+}
+
+.crec__who {
+  font-size: 0.8rem;
+  color: var(--c-text-sub);
+}
+
+@media (max-width: 900px) {
+  .crec__dash {
+    grid-template-columns: 1fr;
+  }
 }

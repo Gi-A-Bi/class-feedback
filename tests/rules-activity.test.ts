@@ -321,16 +321,41 @@ describe('평가 쓰기', () => {
     )
   })
 
-  it('지금 발표가 아닌 발표에는 쓸 수 없다', async () => {
+  it('아직 차례가 오지 않은 발표에는 쓸 수 없다', async () => {
     await assertFails(setDoc(evalRef(student(UID_1), P2, S1), peerEval(S1, P2)))
   })
 
-  it('교사가 넘긴 뒤에는 고칠 수 없다', async () => {
+  it('이 활동에 없는 발표에는 쓸 수 없다', async () => {
+    await assertFails(setDoc(evalRef(student(UID_1), 'pres-none', S1), peerEval(S1, 'pres-none')))
+  })
+
+  it('교사가 넘긴 뒤에도 활동이 진행 중이면 지난 발표의 평가를 고칠 수 있다', async () => {
     const db = student(UID_1)
     await assertSucceeds(setDoc(evalRef(db, P1, S1), peerEval(S1)))
     // 교사가 다음 발표자로 넘긴다
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), 'activities', ACT), { currentPresentationId: P2 })
+    })
+    await assertSucceeds(
+      updateDoc(evalRef(db, P1, S1), {
+        scores: { content: 1, delivery: 1, material: 1 },
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  it('놓친 지난 발표의 평가를 뒤늦게 낼 수 있다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'activities', ACT), { currentPresentationId: P2 })
+    })
+    await assertSucceeds(setDoc(evalRef(student(UID_2), P1, S2), peerEval(S2)))
+  })
+
+  it('활동이 끝나면 지난 평가를 고칠 수 없다', async () => {
+    const db = student(UID_1)
+    await assertSucceeds(setDoc(evalRef(db, P1, S1), peerEval(S1)))
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'activities', ACT), { status: 'ended', currentPresentationId: null })
     })
     await assertFails(
       updateDoc(evalRef(db, P1, S1), {
@@ -340,7 +365,14 @@ describe('평가 쓰기', () => {
     )
   })
 
-  it('넘기기 전에는 고칠 수 있다', async () => {
+  it('지난 평가를 고치는 척하며 다른 발표나 다른 학생의 것으로 바꿀 수 없다', async () => {
+    const db = student(UID_1)
+    await assertSucceeds(setDoc(evalRef(db, P1, S1), peerEval(S1)))
+    await assertFails(updateDoc(evalRef(db, P1, S1), { presentationId: P2, updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(evalRef(db, P1, S1), { studentId: S2, updatedAt: serverTimestamp() }))
+  })
+
+  it('지금 발표의 평가도 고칠 수 있다', async () => {
     const db = student(UID_1)
     await assertSucceeds(setDoc(evalRef(db, P1, S1), peerEval(S1)))
     await assertSucceeds(
@@ -357,6 +389,82 @@ describe('평가 쓰기', () => {
       await updateDoc(doc(ctx.firestore(), 'activities', ACT), { status: 'ended' })
     })
     await assertFails(setDoc(evalRef(student(UID_1), P1, S1), peerEval(S1)))
+  })
+})
+
+describe('선생님 평가', () => {
+  const TID = '_teacher'
+  function teacherEval(presentationId = P1, extra: Record<string, unknown> = {}) {
+    return {
+      presentationId,
+      studentId: TID,
+      kind: 'teacher',
+      scores: { content: 4, delivery: 4, material: 5 },
+      comment1: '준비를 많이 했구나',
+      comment2: '조금 더 천천히 말해 보자',
+      hidden: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      ...extra,
+    }
+  }
+
+  it('주인 교사는 발표마다 평가를 쓰고 고칠 수 있다', async () => {
+    const db = teacher(T_A)
+    await assertSucceeds(setDoc(evalRef(db, P1, TID), teacherEval()))
+    await assertSucceeds(
+      updateDoc(evalRef(db, P1, TID), {
+        scores: { content: 5, delivery: 5, material: 5 },
+        comment1: '아주 좋았어',
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  it('아직 하지 않은 발표에도, 활동이 끝난 뒤에도 쓸 수 있다', async () => {
+    await assertSucceeds(setDoc(evalRef(teacher(T_A), P2, TID), teacherEval(P2)))
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'activities', ACT), { status: 'ended', currentPresentationId: null })
+    })
+    await assertSucceeds(setDoc(evalRef(teacher(T_A), P1, TID), teacherEval()))
+  })
+
+  it('다른 교사는 남의 활동에 선생님 평가를 쓸 수 없다', async () => {
+    await assertFails(setDoc(evalRef(teacher(T_B), P1, TID), teacherEval()))
+  })
+
+  it('학생은 선생님 평가를 쓰거나 읽거나 고칠 수 없다', async () => {
+    await assertFails(setDoc(evalRef(student(UID_1), P1, TID), teacherEval()))
+    await assertSucceeds(setDoc(evalRef(teacher(T_A), P1, TID), teacherEval()))
+    await assertFails(getDoc(evalRef(student(UID_1), P1, TID)))
+    await assertFails(updateDoc(evalRef(student(UID_1), P1, TID), { comment1: '바꿈', updatedAt: serverTimestamp() }))
+  })
+
+  it('점수와 코멘트 길이는 학생 평가와 똑같이 검사한다', async () => {
+    const db = teacher(T_A)
+    await assertFails(setDoc(evalRef(db, P1, TID), teacherEval(P1, { scores: { content: 6, delivery: 4, material: 5 } })))
+    await assertFails(setDoc(evalRef(db, P1, TID), teacherEval(P1, { scores: { content: 4 } })))
+    await assertFails(setDoc(evalRef(db, P1, TID), teacherEval(P1, { comment1: '가'.repeat(201) })))
+  })
+
+  it('없는 발표나 틀린 문서 id 로는 쓸 수 없다', async () => {
+    const db = teacher(T_A)
+    await assertFails(setDoc(evalRef(db, 'pres-none', TID), teacherEval('pres-none')))
+    await assertFails(setDoc(doc(db, 'activities', ACT, 'evaluations', 'whatever'), teacherEval()))
+  })
+
+  it('교사가 학생인 척 동료 평가를 쓸 수 없다', async () => {
+    await assertFails(setDoc(evalRef(teacher(T_A), P1, S1), peerEval(S1)))
+    await assertFails(setDoc(evalRef(teacher(T_A), P1, TID), teacherEval(P1, { kind: 'peer' })))
+  })
+
+  it('선생님 평가를 고치는 길로 학생 평가의 내용을 고칠 수 없다', async () => {
+    await assertSucceeds(setDoc(evalRef(student(UID_1), P1, S1), peerEval(S1)))
+    await assertFails(
+      updateDoc(evalRef(teacher(T_A), P1, S1), {
+        kind: 'teacher', studentId: TID, comment1: '바꿈', updatedAt: serverTimestamp(),
+      }),
+    )
   })
 })
 

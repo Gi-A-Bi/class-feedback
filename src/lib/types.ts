@@ -99,7 +99,13 @@ export interface Presentation {
   topic: string
 }
 
-export type EvaluationKind = 'peer' | 'self'
+export type EvaluationKind = 'peer' | 'self' | 'teacher'
+
+/**
+ * 선생님이 쓴 평가는 같은 evaluations 에 담되, 평가자 자리에 이 값을 넣는다.
+ * 명단 문서 id(Firestore 가 만드는 20자리)와 겹칠 수 없는 값이다.
+ */
+export const TEACHER_EVALUATOR_ID = '_teacher'
 
 /**
  * activities/{activityId}/evaluations/{presentationId}__{studentId}
@@ -107,14 +113,14 @@ export type EvaluationKind = 'peer' | 'self'
  */
 export interface Evaluation {
   presentationId: string
-  /** 평가한 학생(명단 문서 id) */
+  /** 평가한 학생(명단 문서 id). 선생님 평가면 TEACHER_EVALUATOR_ID. */
   studentId: string
   kind: EvaluationKind
   /** 기준 id -> 1~5 */
   scores: Record<string, number>
-  /** 동료 평가면 "칭찬 한 가지", 자기 평가면 "잘한 점" */
+  /** 동료·선생님 평가면 "칭찬 한 가지", 자기 평가면 "잘한 점" */
   comment1: string
-  /** 동료 평가면 "제안 한 가지", 자기 평가면 "다음에 고칠 점" */
+  /** 동료·선생님 평가면 "제안 한 가지", 자기 평가면 "다음에 고칠 점" */
   comment2: string
   /** 교사가 부적절한 코멘트를 숨긴 경우 true */
   hidden: boolean
@@ -143,6 +149,23 @@ export function evaluationId(presentationId: string, studentId: string): string 
 
 // ── 4단계: 공개된 결과 ───────────────────────────────────
 
+/** 한 학생이 한 활동에서 친구들에게 준 평가의 요약(자기 평가는 빼고 센다). */
+export interface GivenStats {
+  /** 평가한 발표 수 */
+  count: number
+  /** 기준 id -> 내가 준 점수의 평균 */
+  averages: Record<string, number>
+  /** 별 1개, 2개, … 5개를 각각 몇 번 줬는지. 길이는 항상 5. */
+  distribution: number[]
+}
+
+/** 점수와 코멘트 2칸. 자기 평가와 선생님 평가를 결과에 실을 때 쓴다. */
+export interface ScoredComment {
+  scores: Record<string, number>
+  comment1: string
+  comment2: string
+}
+
 /**
  * classes/{classId}/students/{studentId}/records/{activityId}
  *
@@ -166,11 +189,16 @@ export interface StudentRecord {
   /** 친구들이 쓴 "제안 한 가지". 마찬가지로 섞어 둔다. */
   suggestions: string[]
   /** 내가 한 자기 평가. 안 했으면 null. */
-  self: {
-    scores: Record<string, number>
-    comment1: string
-    comment2: string
-  } | null
+  self: ScoredComment | null
+  /** 선생님이 준 평가. 없으면 null. (이 기능이 생기기 전에 공개한 결과에는 칸이 없다) */
+  teacher?: ScoredComment | null
+  /** 이 활동에서 내가 친구들에게 준 평가의 요약. 하나도 안 했으면 null. */
+  given?: GivenStats | null
+  /**
+   * 이 활동에서 발표를 했는지. 발표는 안 하고 평가만 한 학생에게도
+   * "내가 준 별"을 보여 주려고 결과 문서를 만드는데, 그때 false 다. 칸이 없으면 발표한 것.
+   */
+  presented?: boolean
   /** 회차 순서를 정하는 데 쓴다(활동을 만든 시각). */
   activityCreatedAt: FsTime
   publishedAt: FsTime
@@ -191,6 +219,10 @@ export interface LedgerEntry {
   peerAverages: Record<string, number>
   /** 기준 id -> 자기 평가 점수. 자기 평가를 안 했으면 null */
   selfScores: Record<string, number> | null
+  /** 기준 id -> 선생님이 준 점수. 선생님 평가가 없으면 null */
+  teacherScores?: Record<string, number> | null
+  /** 이 학생이 발표한 발표 문서 id. 받은 코멘트를 찾아 읽을 때 쓴다. */
+  presentationId?: string
 }
 
 /**
@@ -209,6 +241,8 @@ export interface Ledger {
   updatedAt: FsTime
   /** 학생 id -> 그 학생의 요약. 발표하지 않은 학생은 없다. */
   entries: Record<string, LedgerEntry>
+  /** 학생 id -> 그 학생이 친구들에게 준 평가의 요약. 평가를 하나도 안 한 학생은 없다. */
+  given?: Record<string, GivenStats>
 }
 
 export interface LedgerWithId extends Ledger {

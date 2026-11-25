@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, ShuffleIcon } from '../components/Icons'
+import TeacherEvaluationBox from '../components/TeacherEvaluationBox'
 import {
   deleteActivity,
   endActivity,
@@ -18,6 +19,7 @@ import {
 import { getClass, releaseClaim, watchStudents } from '../lib/classes'
 import { presentationLabel, presentationMembers } from '../lib/groups'
 import { syncLedger } from '../lib/ledger'
+import { isTeacherEvaluation } from '../lib/results'
 import type {
   ActivityWithId,
   ClassRoomWithId,
@@ -94,6 +96,7 @@ export default function ActivityRun() {
     evaluations.filter((e) => e.presentationId === currentId).map((e) => e.studentId),
   )
   const expected = students
+  const teacherEval = evaluations.find((e) => e.presentationId === currentId && isTeacherEvaluation(e))
   const doneCount = expected.filter((s) => submittedIds.has(s.id)).length
   const percent = expected.length ? Math.round((doneCount / expected.length) * 100) : 0
 
@@ -276,8 +279,25 @@ export default function ActivityRun() {
               </div>
               <p className="run__hint">
                 이름을 잘못 고른 학생이 있으면 그 이름을 눌러 기기 연결을 풀어 주세요. 흐린 칸은 아직
-                들어오지 않은 학생입니다.
+                들어오지 않은 학생입니다. 학생들은 활동을 끝내기 전까지 지난 발표의 평가도 고칠 수
+                있어요.
               </p>
+
+              {current && (
+                <div className="run__teacher">
+                  <h2 className="run__sideTitle">선생님 평가 · {presentationLabel(current, nameOf)}</h2>
+                  <p className="run__hint" style={{ margin: '2px 0 8px' }}>
+                    친구들 평균과 섞이지 않고, 결과를 공개하면 학생에게 "선생님 평가"로 따로 보입니다.
+                    지금 쓰지 않아도 "결과 보기"에서 나중에 쓸 수 있어요.
+                  </p>
+                  <TeacherEvaluationBox
+                    activity={activity}
+                    presentations={presentations}
+                    presentationId={current.id}
+                    existing={teacherEval}
+                  />
+                </div>
+              )}
             </>
           )}
 

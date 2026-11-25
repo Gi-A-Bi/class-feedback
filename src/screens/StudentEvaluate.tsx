@@ -2,6 +2,7 @@
 // 내 차례에는 자기 평가로 바뀌고, 발표자가 바뀌면 화면이 저절로 넘어간다.
 import { useEffect, useMemo, useState } from 'react'
 import EvaluationForm from './EvaluationForm'
+import StudentPast from './StudentPast'
 import StudentRecords from './StudentRecords'
 import { watchActivity, watchPresentations } from '../lib/activities'
 import { watchStudents } from '../lib/classes'
@@ -25,6 +26,8 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
   const [error, setError] = useState<string | null>(null)
   // "내 기록"을 연 순간의 발표 id. 발표자가 바뀌면 값이 달라져 기록 화면이 저절로 닫힌다.
   const [recordsOpenedAt, setRecordsOpenedAt] = useState<string | null>(null)
+  // "지난 평가"도 같은 방식으로, 발표자가 바뀌면 저절로 닫혀 새 발표 화면으로 넘어간다.
+  const [pastOpenedAt, setPastOpenedAt] = useState<string | null>(null)
 
   // 학급 문서를 보고 지금 진행 중인 활동을 찾는다
   useEffect(() => {
@@ -105,6 +108,21 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
     return <WaitScreen session={session} text="첫 발표를 기다리고 있어요." onLeave={handleLeave} onRecords={openRecords} />
   }
 
+  // 이미 지나간 발표들. 활동이 끝날 때까지 평가를 고치거나 뒤늦게 낼 수 있다.
+  const past = presentations.slice(0, currentIndex)
+
+  if (pastOpenedAt === viewKey && past.length > 0) {
+    return (
+      <StudentPast
+        session={session}
+        activity={activity}
+        presentations={past}
+        nameOf={nameOf}
+        onBack={() => setPastOpenedAt(null)}
+      />
+    )
+  }
+
   const isGroup = Boolean(current.groupName)
   const toneClass = isSelf ? ' eval--self' : ''
 
@@ -117,6 +135,11 @@ export default function StudentEvaluate({ session, onLeave }: Props) {
         <span className="eval__me">
           {session.studentNumber}번 {session.studentName}
         </span>
+        {past.length > 0 && (
+          <button type="button" className="btn--small eval__out" onClick={() => setPastOpenedAt(viewKey)}>
+            지난 평가
+          </button>
+        )}
         <button type="button" className="btn--small eval__out" onClick={openRecords}>
           내 기록
         </button>
