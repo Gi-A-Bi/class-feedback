@@ -3,7 +3,7 @@
 // 형식만 가져온다. 라이브러리 본체는 내려받기 버튼을 누를 때 불러온다.
 import type { Cell } from 'write-excel-file/browser'
 import { presentationLabel, presentationMembers } from './groups'
-import { isSelfEvaluation, overallAverage, summarize } from './results'
+import { isSelfEvaluation, isTeacherEvaluation, overallAverage, summarize } from './results'
 import { isoDate } from './time'
 import type {
   Activity,
@@ -77,9 +77,11 @@ export function activitySheets(
       round2(overallAverage(s.peerAverages)),
     ])
 
+    // 선생님 평가, 자기 평가, 동료 평가 순서
+    const rank = (e: Evaluation) => (isTeacherEvaluation(e) ? 0 : isSelfEvaluation(e, p) ? 1 : 2)
     const sorted = [...mine].sort((a, b) => {
-      const selfA = isSelfEvaluation(a, p) ? 0 : 1
-      const selfB = isSelfEvaluation(b, p) ? 0 : 1
+      const selfA = rank(a)
+      const selfB = rank(b)
       if (selfA !== selfB) return selfA - selfB
       return (byId.get(a.studentId)?.number ?? 999) - (byId.get(b.studentId)?.number ?? 999)
     })
@@ -89,8 +91,8 @@ export function activitySheets(
         i + 1,
         presentationLabel(p, nameOf),
         who?.number ?? null,
-        who?.name ?? '(지워진 학생)',
-        isSelfEvaluation(e, p) ? '자기 평가' : '동료 평가',
+        isTeacherEvaluation(e) ? '선생님' : (who?.name ?? '(지워진 학생)'),
+        isTeacherEvaluation(e) ? '선생님 평가' : isSelfEvaluation(e, p) ? '자기 평가' : '동료 평가',
         ...criteria.map((c) => e.scores[c.id] ?? null),
         e.comment1,
         e.comment2,
@@ -132,7 +134,7 @@ export function activitySheets(
   ]
 }
 
-/** 학급의 누적 기록. "한눈에" 와 "기준별" 두 시트. */
+/** 학급의 누적 기록. "한눈에", "기준별", "준 별점" 세 시트. */
 export function cumulativeSheets(ledgers: Ledger[], students: StudentLike[]): SheetSpec[] {
   const overview: Cell[][] = [
     [
@@ -154,6 +156,18 @@ export function cumulativeSheets(ledgers: Ledger[], students: StudentLike[]): Sh
       head('기준'),
       head('친구들 평균'),
       head('자기 평가'),
+      head('선생님 평가'),
+    ],
+  ]
+  const givenSheet: Cell[][] = [
+    [
+      head('번호'),
+      head('이름'),
+      head('활동'),
+      head('날짜'),
+      head('평가한 발표 수'),
+      head('준 별 평균'),
+      ...[1, 2, 3, 4, 5].map((n) => head(`별 ${n}개`)),
     ],
   ]
 
@@ -185,8 +199,24 @@ export function cumulativeSheets(ledgers: Ledger[], students: StudentLike[]): Sh
           c.label,
           round2(entry.peerAverages[c.id]),
           entry.selfScores?.[c.id] ?? null,
+          entry.teacherScores?.[c.id] ?? null,
         ])
       }
+    }
+
+    for (const l of ledgers) {
+      const g = l.given?.[s.id]
+      if (!g) continue
+      const stars = g.distribution.reduce((a, b) => a + b, 0)
+      givenSheet.push([
+        s.number,
+        s.name,
+        l.title,
+        isoDate(l.activityCreatedAt),
+        g.count,
+        stars ? round2(g.distribution.reduce((sum, n, k) => sum + n * (k + 1), 0) / stars) : null,
+        ...g.distribution,
+      ])
     }
   }
 
@@ -202,7 +232,16 @@ export function cumulativeSheets(ledgers: Ledger[], students: StudentLike[]): Sh
       data: byCriterion,
       columns: [
         { width: 6 }, { width: 12 }, { width: 24 }, { width: 12 }, { width: 8 },
-        { width: 14 }, { width: 14 }, { width: 12 }, { width: 12 }, { width: 10 },
+        { width: 14 }, { width: 14 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 12 },
+      ],
+      stickyRowsCount: 1,
+    },
+    {
+      sheet: '준 별점',
+      data: givenSheet,
+      columns: [
+        { width: 6 }, { width: 12 }, { width: 24 }, { width: 12 }, { width: 14 }, { width: 12 },
+        { width: 8 }, { width: 8 }, { width: 8 }, { width: 8 }, { width: 8 },
       ],
       stickyRowsCount: 1,
     },

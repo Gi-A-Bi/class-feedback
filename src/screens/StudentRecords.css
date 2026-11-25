@@ -141,14 +141,9 @@
 .rec__metersHead,
 .rec__meterRow {
   display: grid;
-  grid-template-columns: minmax(70px, 1fr) 200px 200px;
+  /* 열 너비는 별 칸 수에 따라 화면 코드가 정한다 */
   align-items: center;
   gap: 12px;
-}
-
-.rec__meters--noself .rec__metersHead,
-.rec__meters--noself .rec__meterRow {
-  grid-template-columns: minmax(70px, 1fr) 200px;
 }
 
 .rec__metersHead {
@@ -219,6 +214,77 @@
   word-break: break-word;
 }
 
+/* 선생님 평가는 자기 평가(노란 바탕)와 헷갈리지 않게 차분한 바탕을 쓴다 */
+.rec__teacher {
+  background: var(--c-bg);
+  border-color: var(--c-border);
+}
+
+.rec__from {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  font-size: 0.78rem;
+  color: var(--c-text-sub);
+}
+
+/* 모아 보기 */
+.rec__tiles {
+  flex: none;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.rec__tile {
+  padding: 10px 12px;
+  background: var(--c-bg);
+  border-radius: var(--r-button);
+}
+
+.rec__tile dt {
+  font-size: 0.8rem;
+  color: var(--c-text-sub);
+}
+
+.rec__tile dd {
+  margin: 2px 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.rec__tile small {
+  margin-left: 2px;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.rec__dash {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 24px;
+}
+
+.rec__mini {
+  display: grid;
+  gap: 2px;
+}
+
+.rec__miniRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 26px;
+}
+
 @media (max-width: 900px) {
   .rec__comments,
   .rec__self {
@@ -227,6 +293,14 @@
 
   .rec__metersHead,
   .rec__meterRow {
+    grid-template-columns: 1fr !important;
+  }
+
+  .rec__tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rec__dash {
     grid-template-columns: 1fr;
   }
 }

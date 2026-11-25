@@ -236,3 +236,18 @@
     overflow: visible;
   }
 }
+
+/* 지난 평가: 고르는 발표의 이름을 입력 칸 위에 한 줄로 보여 준다 */
+.past__head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.past__name {
+  font-family: var(--f-title);
+  font-size: 1.3rem;
+  font-weight: 400;
+}

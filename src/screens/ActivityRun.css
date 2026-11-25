@@ -341,3 +341,13 @@
   color: var(--c-text-sub);
   font-size: 0.8rem;
 }
+
+/* 선생님 평가 칸 */
+.run__teacher {
+  padding-top: 16px;
+  border-top: 1px solid var(--c-border);
+}
+
+.run__teacher .run__sideTitle {
+  margin-bottom: 0;
+}

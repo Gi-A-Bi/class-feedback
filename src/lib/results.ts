@@ -1,10 +1,13 @@
 // 평가들을 모아 학생에게 보여 줄 결과로 바꾸는 계산. 화면도 Firestore 도 모른다.
-import type {
-  Activity,
-  Evaluation,
-  LedgerEntry,
-  Presentation,
-  StudentRecord,
+import {
+  TEACHER_EVALUATOR_ID,
+  type Activity,
+  type Evaluation,
+  type GivenStats,
+  type LedgerEntry,
+  type Presentation,
+  type ScoredComment,
+  type StudentRecord,
 } from './types'
 
 type PresentationLike = Presentation & { id: string }
@@ -27,12 +30,22 @@ export function isSelfEvaluation(e: Evaluation, p: Presentation): boolean {
   return p.studentIds.includes(e.studentId)
 }
 
+/** 선생님이 쓴 평가인지. 친구들 평균에도 자기 평가에도 넣지 않고 따로 보여 준다. */
+export function isTeacherEvaluation(e: Pick<Evaluation, 'studentId'>): boolean {
+  return e.studentId === TEACHER_EVALUATOR_ID
+}
+
+/** 친구가 쓴 평가인지(자기 평가도 선생님 평가도 아닌 것). */
+export function isPeerEvaluation(e: Evaluation, p: Presentation): boolean {
+  return !isTeacherEvaluation(e) && !isSelfEvaluation(e, p)
+}
+
 export function summarize(
   criteria: Activity['criteria'],
   presentation: Presentation,
   evaluations: Evaluation[],
 ): PresentationSummary {
-  const peers = evaluations.filter((e) => !isSelfEvaluation(e, presentation))
+  const peers = evaluations.filter((e) => isPeerEvaluation(e, presentation))
   const peerAverages: Record<string, number> = {}
   for (const c of criteria) {
     const values = peers
@@ -68,10 +81,19 @@ export function buildRecords(
   random: () => number = Math.random,
 ): Map<string, RecordBody> {
   const records = new Map<string, RecordBody>()
+  const given = buildGiven(activity, presentations, evaluations)
 
   for (const p of presentations) {
     const mine = evaluations.filter((e) => e.presentationId === p.id)
-    const peers = mine.filter((e) => !isSelfEvaluation(e, p))
+    const peers = mine.filter((e) => isPeerEvaluation(e, p))
+    const teacherEval = mine.find(isTeacherEvaluation)
+    const teacher: ScoredComment | null = teacherEval
+      ? {
+          scores: teacherEval.scores,
+          comment1: teacherEval.comment1.trim(),
+          comment2: teacherEval.comment2.trim(),
+        }
+      : null
     const { peerCount, peerAverages } = summarize(activity.criteria, p, mine)
 
     const visible = peers.filter((e) => !e.hidden)
@@ -102,11 +124,68 @@ export function buildRecords(
               comment2: self.hidden ? '' : self.comment2.trim(),
             }
           : null,
+        teacher,
+        given: given[studentId] ?? null,
+        presented: true,
       })
     }
   }
 
+  // 발표는 안 하고 평가만 한 학생에게도 "내가 준 별"은 보여 준다.
+  for (const [studentId, stats] of Object.entries(given)) {
+    if (records.has(studentId)) continue
+    records.set(studentId, {
+      activityTitle: activity.title,
+      kind: activity.kind,
+      groupName: '',
+      criteria: activity.criteria,
+      peerCount: 0,
+      peerAverages: {},
+      praise: [],
+      suggestions: [],
+      self: null,
+      teacher: null,
+      given: stats,
+      presented: false,
+    })
+  }
+
   return records
+}
+
+/**
+ * 학생마다 "이 활동에서 친구들에게 준 평가"를 요약한다. 열쇠는 학생 id.
+ * 자기 평가와 선생님 평가, 지워진 발표에 남은 평가는 세지 않는다.
+ */
+export function buildGiven(
+  activity: Pick<Activity, 'criteria'>,
+  presentations: PresentationLike[],
+  evaluations: Evaluation[],
+): Record<string, GivenStats> {
+  const byId = new Map(presentations.map((p) => [p.id, p]))
+  const mineOf = new Map<string, Evaluation[]>()
+  for (const e of evaluations) {
+    const p = byId.get(e.presentationId)
+    if (!p || !isPeerEvaluation(e, p)) continue
+    mineOf.set(e.studentId, [...(mineOf.get(e.studentId) ?? []), e])
+  }
+
+  const given: Record<string, GivenStats> = {}
+  for (const [studentId, list] of mineOf) {
+    const averages: Record<string, number> = {}
+    const distribution = [0, 0, 0, 0, 0]
+    for (const c of activity.criteria) {
+      const values = list
+        .map((e) => e.scores[c.id])
+        .filter((v): v is number => typeof v === 'number')
+      if (values.length > 0) averages[c.id] = values.reduce((a, b) => a + b, 0) / values.length
+      for (const v of values) {
+        if (Number.isInteger(v) && v >= 1 && v <= 5) distribution[v - 1] += 1
+      }
+    }
+    given[studentId] = { count: list.length, averages, distribution }
+  }
+  return given
 }
 
 /**
@@ -122,6 +201,7 @@ export function buildLedgerEntries(
   for (const p of presentations) {
     const mine = evaluations.filter((e) => e.presentationId === p.id)
     const { peerCount, peerAverages } = summarize(activity.criteria, p, mine)
+    const teacher = mine.find(isTeacherEvaluation)
     for (const studentId of p.studentIds) {
       const self = mine.find((e) => e.studentId === studentId)
       entries[studentId] = {
@@ -129,6 +209,8 @@ export function buildLedgerEntries(
         peerCount,
         peerAverages,
         selfScores: self ? self.scores : null,
+        teacherScores: teacher ? teacher.scores : null,
+        presentationId: p.id,
       }
     }
   }

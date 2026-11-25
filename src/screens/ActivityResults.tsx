@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import StarMeter from '../components/StarMeter'
+import TeacherEvaluationBox from '../components/TeacherEvaluationBox'
 import {
   publishResults,
   setEvaluationHidden,
@@ -14,7 +15,7 @@ import {
 import { getClass, watchStudents } from '../lib/classes'
 import { activitySheets, downloadWorkbook } from '../lib/export'
 import { presentationLabel, presentationMembers } from '../lib/groups'
-import { isSelfEvaluation, summarize } from '../lib/results'
+import { isPeerEvaluation, isSelfEvaluation, isTeacherEvaluation, summarize } from '../lib/results'
 import { isoDate } from '../lib/time'
 import type {
   ActivityWithId,
@@ -88,6 +89,7 @@ export default function ActivityResults() {
 
   const published = activity.resultsPublished
   const hiddenCount = evaluations.filter((e) => e.hidden).length
+  const studentEvalCount = evaluations.filter((e) => !isTeacherEvaluation(e)).length
 
   async function run(fn: () => Promise<void>, failMessage: string, doneMessage?: string) {
     setBusy(true)
@@ -123,7 +125,7 @@ export default function ActivityResults() {
         <div className="run__barMain">
           <span className="run__title">{activity.title} · 결과</span>
           <span className="run__sub">
-            {klass?.name ?? ''} · 평가 {evaluations.length}건
+            {klass?.name ?? ''} · 평가 {studentEvalCount}건
             {hiddenCount > 0 ? ` · 숨긴 평가 ${hiddenCount}건` : ''}
           </span>
         </div>
@@ -197,7 +199,7 @@ export default function ActivityResults() {
         <p className="results__lead">
           여기서는 누가 쓴 평가인지 이름이 보입니다. <strong>학생에게는 이름 없이</strong> 점수 평균과
           코멘트만 나갑니다. 친구에게 보이면 안 되는 코멘트는 <strong>숨기기</strong>를 눌러 주세요.
-          숨긴 평가도 점수는 평균에 들어갑니다.
+          숨긴 평가도 점수는 평균에 들어갑니다. 선생님 평가는 평균에 넣지 않고 학생에게 따로 보여 줍니다.
         </p>
         {notice && <p className="msg msg--ok">{notice}</p>}
         {error && <p className="msg msg--bad">{error}</p>}
@@ -205,9 +207,10 @@ export default function ActivityResults() {
         {presentations.map((p, i) => {
           const mine = evaluations.filter((e) => e.presentationId === p.id)
           const peers = mine
-            .filter((e) => !isSelfEvaluation(e, p))
+            .filter((e) => isPeerEvaluation(e, p))
             .sort((a, b) => numberOf(a.studentId) - numberOf(b.studentId))
-          const selves = mine.filter((e) => isSelfEvaluation(e, p))
+          const selves = mine.filter((e) => !isTeacherEvaluation(e) && isSelfEvaluation(e, p))
+          const teacherEval = mine.find(isTeacherEvaluation)
           const summary = summarize(activity.criteria, p, mine)
 
           return (
@@ -251,6 +254,19 @@ export default function ActivityResults() {
                     </tr>
                   </thead>
                   <tbody>
+                    {teacherEval && (
+                      <tr className="results__row--teacher">
+                        <td>
+                          선생님<span className="results__tag">선생님 평가</span>
+                        </td>
+                        {activity.criteria.map((c) => (
+                          <td key={c.id} className="results__num">{teacherEval.scores[c.id] ?? '-'}</td>
+                        ))}
+                        <td className="results__comment">{teacherEval.comment1 || <span className="results__none">없음</span>}</td>
+                        <td className="results__comment">{teacherEval.comment2 || <span className="results__none">없음</span>}</td>
+                        <td />
+                      </tr>
+                    )}
                     {[...selves, ...peers].map((e) => {
                       const self = isSelfEvaluation(e, p)
                       return (
@@ -285,6 +301,16 @@ export default function ActivityResults() {
                   </tbody>
                 </table>
               )}
+
+              <details className="results__teacher">
+                <summary>{teacherEval ? '선생님 평가 고치기' : '선생님 평가 쓰기'}</summary>
+                <TeacherEvaluationBox
+                  activity={activity}
+                  presentations={presentations}
+                  presentationId={p.id}
+                  existing={teacherEval}
+                />
+              </details>
             </section>
           )
         })}

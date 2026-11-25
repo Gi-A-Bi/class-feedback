@@ -1,8 +1,10 @@
 // 학생 3. 내 기록 — 선생님이 공개한 내 결과.
 // 내 것만 보인다. 다른 친구의 점수나 순위는 어디에도 나오지 않는다.
 import { useEffect, useState } from 'react'
+import StarBars from '../components/StarBars'
 import StarMeter from '../components/StarMeter'
 import TrendChart from '../components/TrendChart'
+import { buildDashboard } from '../lib/dashboard'
 import { overallAverage } from '../lib/results'
 import { watchMyRecords, type StudentSession } from '../lib/student'
 import { shortDate } from '../lib/time'
@@ -35,14 +37,39 @@ export default function StudentRecords({ session, onBack }: Props) {
     )
   }, [session.classId, session.studentId])
 
-  const list = records ?? []
-  // 고른 회차가 없거나 사라졌으면 가장 최근 회차를 보여 준다
-  const selectedIndex = (() => {
-    const i = list.findIndex((r) => r.id === pickedId)
-    return i >= 0 ? i : list.length - 1
-  })()
+  const all = records ?? []
+  // 회차 목록에는 내가 발표한 활동만 나온다. 발표는 안 하고 평가만 한 활동은
+  // "모아 보기"의 내가 준 별에만 들어간다.
+  const list = all.filter((r) => r.presented !== false)
+  // 고른 회차가 없거나 사라졌으면 "모아 보기"를 보여 준다
+  const selectedIndex = list.findIndex((r) => r.id === pickedId)
   const selected = selectedIndex >= 0 ? list[selectedIndex] : null
   const averages = list.map((r) => overallAverage(r.peerAverages))
+
+  const dashboard = buildDashboard(
+    all.map((r) => ({
+      criteria: r.criteria,
+      presented: r.presented !== false,
+      peerCount: r.peerCount,
+      peerAverages: r.peerAverages,
+      selfScores: r.self?.scores ?? null,
+      teacherScores: r.teacher?.scores ?? null,
+      given: r.given ?? null,
+    })),
+  )
+  const allPraise = list.flatMap((r) => [
+    ...r.praise.map((text) => ({ text, from: '친구' })),
+    ...(r.teacher?.comment1 ? [{ text: r.teacher.comment1, from: '선생님' }] : []),
+  ])
+  const allSuggestions = list.flatMap((r) => [
+    ...r.suggestions.map((text) => ({ text, from: '친구' })),
+    ...(r.teacher?.comment2 ? [{ text: r.teacher.comment2, from: '선생님' }] : []),
+  ])
+  const fmt = (v: number | null) => (v === null ? '-' : v.toFixed(1))
+  // 별 칸이 셋(친구·선생님·나)이면 자리가 모자라 별을 조금 작게 그린다
+  const meterCols = selected ? 1 + (selected.teacher ? 1 : 0) + (selected.self ? 1 : 0) : 1
+  const meterSize = meterCols >= 3 ? 18 : 22
+  const meterGrid = { gridTemplateColumns: `minmax(70px, 1fr) repeat(${meterCols}, ${meterCols >= 3 ? 150 : 200}px)` }
 
   return (
     <div className="eval">
@@ -62,7 +89,7 @@ export default function StudentRecords({ session, onBack }: Props) {
         <div className="eval__wait">
           <p>{error ?? '불러오고 있어요…'}</p>
         </div>
-      ) : list.length === 0 ? (
+      ) : all.length === 0 ? (
         <div className="eval__wait">
           <p>아직 볼 수 있는 기록이 없어요. 선생님이 결과를 공개하면 여기에 보여요.</p>
         </div>
@@ -84,6 +111,18 @@ export default function StudentRecords({ session, onBack }: Props) {
             </div>
 
             <ol className="rec__list">
+              <li>
+                <button
+                  type="button"
+                  className={`rec__item${selected ? '' : ' rec__item--on'}`}
+                  onClick={() => setPickedId(null)}
+                  aria-current={!selected}
+                >
+                  <span className="rec__itemTitle">모아 보기</span>
+                  <span className="rec__itemSub">지금까지의 기록을 한눈에</span>
+                  <span className="rec__itemAvg">{fmt(dashboard.peerAverage)}</span>
+                </button>
+              </li>
               {list.map((r, i) => (
                 <li key={r.id}>
                   <button
@@ -107,6 +146,101 @@ export default function StudentRecords({ session, onBack }: Props) {
               ))}
             </ol>
           </aside>
+
+          {!selected && (
+            <section className="eval__main rec__main">
+              <div className="rec__head">
+                <h2 className="rec__title">모아 보기</h2>
+                <p className="rec__sub">선생님이 공개한 활동 {all.length}개를 모았어요. 내 것만 보여요.</p>
+              </div>
+
+              <dl className="rec__tiles">
+                <div className="rec__tile">
+                  <dt>발표한 횟수</dt>
+                  <dd>{dashboard.presentedCount}<small>번</small></dd>
+                </div>
+                <div className="rec__tile">
+                  <dt>친구들이 준 별</dt>
+                  <dd>{fmt(dashboard.peerAverage)}</dd>
+                </div>
+                <div className="rec__tile">
+                  <dt>선생님이 준 별</dt>
+                  <dd>{fmt(dashboard.teacherAverage)}</dd>
+                </div>
+                <div className="rec__tile">
+                  <dt>나에게 준 별</dt>
+                  <dd>{fmt(dashboard.selfAverage)}</dd>
+                </div>
+                <div className="rec__tile">
+                  <dt>친구에게 준 별</dt>
+                  <dd>{fmt(dashboard.givenAverage)}</dd>
+                </div>
+              </dl>
+
+              <div className="rec__dash">
+                <div className="rec__dashCol">
+                  <h3 className="rec__h">기준마다 받은 별 (친구들 평균)</h3>
+                  {dashboard.criteria.filter((c) => c.peer !== null).length === 0 ? (
+                    <p className="rec__hint">아직 친구들의 평가가 없어요.</p>
+                  ) : (
+                    <div className="rec__mini">
+                      {dashboard.criteria
+                        .filter((c) => c.peer !== null)
+                        .map((c) => (
+                          <div key={c.id} className="rec__miniRow">
+                            <span className="rec__meterLabel">{c.label}</span>
+                            <StarMeter value={c.peer} size={18} label={`${c.label}, 친구들이 준 별 평균`} />
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+                <div className="rec__dashCol">
+                  <h3 className="rec__h">
+                    내가 친구에게 준 별 · 평가 {dashboard.givenCount}번
+                  </h3>
+                  {dashboard.givenCount === 0 ? (
+                    <p className="rec__hint">아직 친구를 평가한 기록이 없어요.</p>
+                  ) : (
+                    <StarBars distribution={dashboard.givenDistribution} label="내가 친구에게 준 별의 개수" />
+                  )}
+                </div>
+              </div>
+
+              <div className="rec__comments">
+                <div className="rec__col">
+                  <h3 className="rec__h">지금까지 받은 칭찬 {allPraise.length}개</h3>
+                  {allPraise.length === 0 ? (
+                    <p className="rec__hint">적힌 칭찬이 없어요.</p>
+                  ) : (
+                    <ul className="rec__quotes">
+                      {allPraise.map((c, i) => (
+                        <li key={i}>
+                          {c.from === '선생님' && <span className="rec__from">선생님</span>}
+                          {c.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rec__col">
+                  <h3 className="rec__h">지금까지 받은 제안 {allSuggestions.length}개</h3>
+                  {allSuggestions.length === 0 ? (
+                    <p className="rec__hint">적힌 제안이 없어요.</p>
+                  ) : (
+                    <ul className="rec__quotes">
+                      {allSuggestions.map((c, i) => (
+                        <li key={i}>
+                          {c.from === '선생님' && <span className="rec__from">선생님</span>}
+                          {c.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           {selected && (
             <section className="eval__main rec__main">
@@ -132,29 +266,37 @@ export default function StudentRecords({ session, onBack }: Props) {
                 </p>
               </div>
 
-              <div
-                className={`rec__meters${selected.self ? '' : ' rec__meters--noself'}`}
-                role="table"
-                aria-label="기준별 별점"
-              >
-                <div className="rec__metersHead" role="row">
+              <div className="rec__meters" role="table" aria-label="기준별 별점">
+                <div className="rec__metersHead" role="row" style={meterGrid}>
                   <span role="columnheader" />
                   <span role="columnheader">친구들이 준 별</span>
+                  {selected.teacher && <span role="columnheader">선생님이 준 별</span>}
                   {selected.self && <span role="columnheader">내가 준 별</span>}
                 </div>
                 {selected.criteria.map((c) => (
-                  <div key={c.id} className="rec__meterRow" role="row">
+                  <div key={c.id} className="rec__meterRow" role="row" style={meterGrid}>
                     <span className="rec__meterLabel" role="rowheader">{c.label}</span>
                     <span role="cell">
                       <StarMeter
                         value={selected.peerAverages[c.id] ?? null}
+                        size={meterSize}
                         label={`${c.label}, 친구들이 준 별`}
                       />
                     </span>
+                    {selected.teacher && (
+                      <span role="cell">
+                        <StarMeter
+                          value={selected.teacher.scores[c.id] ?? null}
+                          size={meterSize}
+                          label={`${c.label}, 선생님이 준 별`}
+                        />
+                      </span>
+                    )}
                     {selected.self && (
                       <span role="cell">
                         <StarMeter
                           value={selected.self.scores[c.id] ?? null}
+                          size={meterSize}
                           label={`${c.label}, 내가 준 별`}
                         />
                       </span>
@@ -194,6 +336,19 @@ export default function StudentRecords({ session, onBack }: Props) {
                   )}
                 </div>
               </div>
+
+              {selected.teacher && (selected.teacher.comment1 || selected.teacher.comment2) && (
+                <div className="rec__self rec__teacher">
+                  <div>
+                    <h3 className="rec__h">선생님의 칭찬</h3>
+                    <p>{selected.teacher.comment1 || '적지 않으셨어요.'}</p>
+                  </div>
+                  <div>
+                    <h3 className="rec__h">선생님의 제안</h3>
+                    <p>{selected.teacher.comment2 || '적지 않으셨어요.'}</p>
+                  </div>
+                </div>
+              )}
 
               {selected.self && (selected.self.comment1 || selected.self.comment2) && (
                 <div className="rec__self">

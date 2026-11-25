@@ -10,7 +10,7 @@ import {
   setDoc,
 } from 'firebase/firestore'
 import { getDb } from './firebase'
-import { buildLedgerEntries } from './results'
+import { buildGiven, buildLedgerEntries } from './results'
 import { toMillis } from './time'
 import type { ActivityWithId, Evaluation, LedgerWithId, PresentationWithId } from './types'
 
@@ -32,6 +32,7 @@ export async function writeLedger(
     activityCreatedAt: activity.createdAt ?? null,
     updatedAt: serverTimestamp(),
     entries: buildLedgerEntries(activity, presentations, evaluations),
+    given: buildGiven(activity, presentations, evaluations),
   })
 }
 
