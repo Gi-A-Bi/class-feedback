@@ -11,6 +11,7 @@ import ActivityNew from './screens/ActivityNew'
 import ActivityRun from './screens/ActivityRun'
 import ActivityResults from './screens/ActivityResults'
 import StudentApp from './screens/StudentApp'
+import PortfolioConnect from './screens/PortfolioConnect'
 
 /** 로그인한 교사만 지나갈 수 있는 문 */
 function TeacherGuard() {
@@ -38,9 +39,11 @@ export default function App() {
         <Route path="/teacher/activity/:activityId" element={<ActivityRun />} />
         <Route path="/teacher/activity/:activityId/results" element={<ActivityResults />} />
       </Route>
+      <Route path="/portfolio-connect" element={<PortfolioConnect />} />
       <Route path="/student" element={<StudentApp />} />
       <Route path="/setup" element={<SetupCheck />} />
       <Route path="*" element={<Navigate to="/student" replace />} />
     </Routes>
   )
 }
+

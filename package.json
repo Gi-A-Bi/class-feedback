@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:rules": "firebase emulators:exec --only firestore --project demo-class-feedback \"vitest run tests/rules.test.ts tests/rules-activity.test.ts tests/rules-delete.test.ts\"",
-    "test": "vitest run tests/roster.test.ts tests/results.test.ts tests/groups.test.ts tests/export.test.ts"
+    "test": "vitest run tests/roster.test.ts tests/results.test.ts tests/groups.test.ts tests/export.test.ts tests/portfolio.test.ts"
   },
   "dependencies": {
     "firebase": "^13.4.0",
@@ -31,3 +31,4 @@
     "vitest": "^5.1.1"
   }
 }
+
