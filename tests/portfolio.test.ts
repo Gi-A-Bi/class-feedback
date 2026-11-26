@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bridgeTarget, ledgerSummary } from '../src/lib/portfolioProtocol'
+import { bridgeTarget, ledgerSummary, classListStatus } from '../src/lib/portfolioProtocol'
 
 describe('portfolio message protocol', () => {
   const channel = 'a'.repeat(64)
@@ -31,4 +31,11 @@ describe('portfolio message protocol', () => {
     expect(ledgerSummary(ledger,null,[]).retired).toBe(true)
     expect(ledgerSummary(ledger,{resultsPublished:false},[]).sourcePublished).toBe(false)
   })
+})
+
+
+it('shows whether the teacher account is empty or the receiving window has not responded', () => {
+  expect(classListStatus(0, false)).toContain('등록된 피드백 학급이 없어요')
+  expect(classListStatus(2, false)).toContain('도착했는지 확인')
+  expect(classListStatus(2, true)).toContain('전달됐어요')
 })

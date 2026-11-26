@@ -24,8 +24,9 @@ export function useAuth(): AuthState {
 }
 
 /** 구글 로그인 창을 띄우고, 처음이면 teachers/{uid} 문서를 만든다. */
-export async function signInTeacher(): Promise<void> {
+export async function signInTeacher(selectAccount = false): Promise<void> {
   const provider = new GoogleAuthProvider()
+  if (selectAccount) provider.setCustomParameters({ prompt: 'select_account' })
   const result = await signInWithPopup(getAuthClient(), provider)
   const user = result.user
 
@@ -42,3 +43,4 @@ export async function signInTeacher(): Promise<void> {
 export async function signOutTeacher(): Promise<void> {
   await signOut(getAuthClient())
 }
+

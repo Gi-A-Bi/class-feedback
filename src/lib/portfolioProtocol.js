@@ -31,3 +31,11 @@ export function ledgerSummary(ledger, activity, roster) {
     })),
   }
 }
+
+// Distinguish an empty teacher account from a message that has not reached its destination.
+export function classListStatus(count, acknowledged) {
+  if (!count) return '현재 로그인한 계정에 등록된 피드백 학급이 없어요. 아래 계정을 확인하거나 피드백 학급 관리를 열어 주세요.'
+  return acknowledged
+    ? `학급 ${count}개가 포트폴리오에 전달됐어요. 원래 포트폴리오 창에서 연결할 학급을 선택해 주세요.`
+    : `학급 ${count}개를 찾았어요. 포트폴리오 창에 목록이 도착했는지 확인하고 있어요.`
+}
